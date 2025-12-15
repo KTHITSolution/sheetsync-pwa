@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#2563eb">
-<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2344/2344132.png">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2344/2344132.png">
     <title>SheetSync PWA</title>
     <script src="https://cdn.jsdelivr.net/npm/idb@7/build/umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -42,17 +43,33 @@
         header {
             background: var(--card-bg);
             padding: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             text-align: center;
             position: sticky;
             top: 0;
             z-index: 10;
         }
 
-        .balance-label { font-size: 0.9rem; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px; }
-        .balance-amount { font-size: 2.5rem; font-weight: 700; margin: 5px 0; }
-        .balance-amount.pos { color: var(--success); }
-        .balance-amount.neg { color: var(--danger); }
+        .balance-label {
+            font-size: 0.9rem;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .balance-amount {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 5px 0;
+        }
+
+        .balance-amount.pos {
+            color: var(--success);
+        }
+
+        .balance-amount.neg {
+            color: var(--danger);
+        }
 
         /* --- Action Buttons --- */
         .actions {
@@ -74,11 +91,20 @@
             align-items: center;
             justify-content: center;
             color: white;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-        .btn:active { transform: scale(0.98); }
-        .btn-income { background-color: var(--success); }
-        .btn-expense { background-color: var(--danger); }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-income {
+            background-color: var(--success);
+        }
+
+        .btn-expense {
+            background-color: var(--danger);
+        }
 
         /* --- Input Form (Hidden by default) --- */
         #input-panel {
@@ -86,12 +112,18 @@
             padding: 20px;
             margin: 0 20px;
             border-radius: 12px;
-            display: none; /* Toggled via JS */
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: none;
+            /* Toggled via JS */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
         }
-        #input-panel.active { display: block; animation: slideDown 0.2s ease-out; }
 
-        input, select {
+        #input-panel.active {
+            display: block;
+            animation: slideDown 0.2s ease-out;
+        }
+
+        input,
+        select {
             width: 100%;
             padding: 12px;
             margin-bottom: 12px;
@@ -100,20 +132,48 @@
             font-size: 1rem;
             box-sizing: border-box;
         }
-        
-        .form-actions { display: flex; gap: 10px; }
-        .btn-save { background-color: var(--primary); width: 100%; }
-        .btn-cancel { background-color: #9ca3af; width: auto; }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-save {
+            background-color: var(--primary);
+            width: 100%;
+        }
+
+        .btn-cancel {
+            background-color: #9ca3af;
+            width: auto;
+        }
 
         /* --- Transaction List --- */
-        .list-header { padding: 0 20px; font-weight: 600; color: var(--text-sub); display: flex; justify-content: space-between; align-items: center;}
-        .status-indicator { font-size: 0.8rem; }
-        .status-online { color: var(--success); }
-        .status-offline { color: var(--danger); }
+        .list-header {
+            padding: 0 20px;
+            font-weight: 600;
+            color: var(--text-sub);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-indicator {
+            font-size: 0.8rem;
+        }
+
+        .status-online {
+            color: var(--success);
+        }
+
+        .status-offline {
+            color: var(--danger);
+        }
 
         #tx-list {
             list-style: none;
-            padding: 0 20px 80px 20px; /* Bottom padding for scroll */
+            padding: 0 20px 80px 20px;
+            /* Bottom padding for scroll */
             margin: 10px 0 0 0;
         }
 
@@ -125,27 +185,55 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
 
-        .tx-left { display: flex; flex-direction: column; }
-        .tx-cat { font-weight: 600; color: var(--text-main); }
-        .tx-meta { font-size: 0.8rem; color: var(--text-sub); margin-top: 2px; }
-        
-        .tx-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
-        .tx-amount { font-weight: 700; }
-        .tx-icon { font-size: 0.8rem; margin-top: 4px; }
+        .tx-left {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tx-cat {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .tx-meta {
+            font-size: 0.8rem;
+            color: var(--text-sub);
+            margin-top: 2px;
+        }
+
+        .tx-right {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .tx-amount {
+            font-weight: 700;
+        }
+
+        .tx-icon {
+            font-size: 0.8rem;
+            margin-top: 4px;
+        }
 
         /* --- Identity Modal --- */
         #identity-modal {
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
             z-index: 100;
             display: flex;
             align-items: center;
             justify-content: center;
         }
+
         .modal-content {
             background: white;
             padding: 30px;
@@ -154,219 +242,272 @@
             width: 80%;
             max-width: 300px;
         }
+
         /* --- Budget Bars --- */
-.budget-item { margin-bottom: 12px; }
-.budget-label { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 4px; }
-.budget-track { width: 100%; background: #e5e7eb; height: 8px; border-radius: 4px; overflow: hidden; }
-.budget-fill { height: 100%; transition: width 0.5s ease; }
+        .budget-item {
+            margin-bottom: 12px;
+        }
 
-/* Colors based on percentage */
-.fill-green { background: #16a34a; }   /* Safe */
-.fill-orange { background: #f59e0b; }  /* Warning (>75%) */
-.fill-red { background: #dc2626; }     /* Over Budget (>100%) */
-        .user-grid { display: grid; gap: 10px; margin-top: 20px; }
+        .budget-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
 
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .budget-track {
+            width: 100%;
+            background: #e5e7eb;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .budget-fill {
+            height: 100%;
+            transition: width 0.5s ease;
+        }
+
+        /* Colors based on percentage */
+        .fill-green {
+            background: #16a34a;
+        }
+
+        /* Safe */
+        .fill-orange {
+            background: #f59e0b;
+        }
+
+        /* Warning (>75%) */
+        .fill-red {
+            background: #dc2626;
+        }
+
+        /* Over Budget (>100%) */
+        .user-grid {
+            display: grid;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
+
 <body>
 
-<div id="app">
-    <div id="identity-modal" style="display:none;">
-        <div class="modal-content">
-            <h3>Who is using this device?</h3>
-            <p>This tag will be attached to every transaction.</p>
-            <div class="user-grid">
-                <button class="btn btn-save" onclick="setIdentity('KTH')">KTH</button>
-                <button class="btn btn-save" onclick="setIdentity('TST')">TST</button>
+    <div id="app">
+        <div id="identity-modal" style="display:none;">
+            <div class="modal-content">
+                <h3>Who is using this device?</h3>
+                <p>This tag will be attached to every transaction.</p>
+                <div class="user-grid">
+                    <button class="btn btn-save" onclick="setIdentity('KTH')">KTH</button>
+                    <button class="btn btn-save" onclick="setIdentity('TST')">TST</button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <header>
-        <div class="balance-label">Current Balance</div>
-        <div class="balance-amount pos" id="total-balance">$0.00</div>
-        <div style="margin-top: 10px; font-size: 0.8rem; color: #6b7280; cursor: pointer;" onclick="resetIdentity()">
-        👤 <span id="current-user-display">Unknown</span> (Tap to switch)
-    </div>
-    </header>
+        <header>
+            <div class="balance-label">Current Balance</div>
+            <div class="balance-amount pos" id="total-balance">$0.00</div>
+            <div style="margin-top: 10px; font-size: 0.8rem; color: #6b7280; cursor: pointer;"
+                onclick="resetIdentity()">
+                👤 <span id="current-user-display">Unknown</span> (Tap to switch)
+            </div>
+        </header>
 
-    <div class="actions">
-        <button class="btn btn-income" onclick="openForm('Income')">+ Income</button>
-        <button class="btn btn-expense" onclick="openForm('Expense')">- Expense</button>
-    </div>
-
-    <div id="input-panel">
-        <h3 id="form-title">Add Transaction</h3>
-        <input type="number" id="inp-amount" placeholder="Amount (e.g. 50.00)" step="0.01">
-        <select id="inp-category">
-            <option value="Food">Food</option>
-            <option value="Transport">Transport</option>
-            <option value="Housing">Housing</option>
-            <option value="Utilities">Utilities</option>
-            <option value="Entertainment">Entertainment</option>
-            <option value="Salary">Salary</option>
-            <option value="Other">Other</option>
-        </select>
-        <input type="text" id="inp-note" placeholder="Notes (Optional)">
-        <div class="form-actions">
-            <button class="btn btn-cancel" onclick="closeForm()">Cancel</button>
-            <button class="btn btn-save" onclick="saveTransaction()">Save</button>
+        <div class="actions">
+            <button class="btn btn-income" onclick="openForm('Income')">+ Income</button>
+            <button class="btn btn-expense" onclick="openForm('Expense')">- Expense</button>
         </div>
-    </div>
-    <div style="padding: 0 20px; margin-bottom: 20px;">
-    <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-        <canvas id="expenseChart"></canvas>
-    </div>
-    <div id="budget-panel" style="padding: 0 20px 20px 20px; display: none;">
-    <h3 style="margin-top: 0; font-size: 1rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">
-        Monthly Budgets
-    </h3>
-    <div id="budget-list">
-        </div>
-</div>
-</div>
-    <div class="list-header">
-        <span>Recent Transactions</span>
-        <span id="sync-status" class="status-indicator">● Connecting...</span>
-    </div>
 
-    <ul id="tx-list">
+        <div id="input-panel">
+            <h3 id="form-title">Add Transaction</h3>
+            <input type="number" id="inp-amount" placeholder="Amount (e.g. 50.00)" step="0.01">
+            <select id="inp-category">
+                <option value="Food">Food</option>
+                <option value="Transport">Transport</option>
+                <option value="Housing">Housing</option>
+                <option value="Utilities">Utilities</option>
+                <option value="Entertainment">Entertainment</option>
+                <option value="Salary">Salary</option>
+                <option value="Other">Other</option>
+            </select>
+            <input type="text" id="inp-note" placeholder="Notes (Optional)">
+            <div class="form-actions">
+                <button class="btn btn-cancel" onclick="closeForm()">Cancel</button>
+                <button class="btn btn-save" onclick="saveTransaction()">Save</button>
+            </div>
+        </div>
+        <div style="padding: 0 20px; margin-bottom: 20px;">
+            <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <canvas id="expenseChart"></canvas>
+            </div>
+            <div id="budget-panel" style="padding: 0 20px 20px 20px; display: none;">
+                <h3
+                    style="margin-top: 0; font-size: 1rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">
+                    Monthly Budgets
+                </h3>
+                <div id="budget-list">
+                </div>
+            </div>
+        </div>
+        <div class="list-header">
+            <span>Recent Transactions</span>
+            <span id="sync-status" class="status-indicator">● Connecting...</span>
+        </div>
+
+        <ul id="tx-list">
         </ul>
-</div>
+    </div>
 
-<script>
-    // --- CONFIGURATION ---
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyPS5SBcUIXmA5r37qvUbqOIoKJ5vcHJDRk99O7gm7RTUkSnv24yE-dBJF8SdcA7Nxh/exec'; // <--- PASTE DEPLOYED URL HERE
-    const DB_NAME = 'SheetSyncDB';
-    const STORE_NAME = 'transactions';
-    
-    // --- STATE ---
-    let db;
-    let currentUser = null;
-    let currentType = 'Expense'; // State for form
+    <script>
+        // --- CONFIGURATION ---
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyPS5SBcUIXmA5r37qvUbqOIoKJ5vcHJDRk99O7gm7RTUkSnv24yE-dBJF8SdcA7Nxh/exec'; // <--- PASTE DEPLOYED URL HERE
+        const DB_NAME = 'SheetSyncDB';
+        const STORE_NAME = 'transactions';
 
-    // --- INITIALIZATION ---
-    document.addEventListener('DOMContentLoaded', async () => {
-        await initDB();
-        checkIdentity();
-        renderList();
-        
-        // Sync triggers
-        window.addEventListener('online', syncManager.push);
-        setInterval(syncManager.push, 30000); // Try sync every 30s
-        syncManager.push(); // Try on load
-    });
+        // --- STATE ---
+        let db;
+        let currentUser = null;
+        let currentType = 'Expense'; // State for form
 
-    // --- IDENTITY SYSTEM (UPDATED) ---
-    function checkIdentity() {
-        const stored = localStorage.getItem('sheetSyncUser');
-        if (!stored) {
-            document.getElementById('identity-modal').style.display = 'flex';
-        } else {
-            currentUser = stored;
-            // Update the display text in the header
-            document.getElementById('current-user-display').innerText = currentUser; 
-        }
-    }
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initDB();
+            checkIdentity();
+            renderList();
 
-    function setIdentity(user) {
-        localStorage.setItem('sheetSyncUser', user);
-        currentUser = user;
-        document.getElementById('identity-modal').style.display = 'none';
-        checkIdentity(); // Refresh the header display
-    }
+            // Sync triggers
+            const runSync = () => { syncManager.push(); syncManager.pull(); };
 
-    // New function to log out
-    function resetIdentity() {
-        if (confirm('Switch user?')) {
-            localStorage.removeItem('sheetSyncUser');
-            location.reload(); // Reloads the page to trigger the modal
-        }
-    }
-    function setIdentity(user) {
-        localStorage.setItem('sheetSyncUser', user);
-        currentUser = user;
-        document.getElementById('identity-modal').style.display = 'none';
-    }
+            window.addEventListener('online', runSync);
+            setInterval(runSync, 30000); // Check every 30s
 
-    // --- INDEXEDDB WRAPPER ---
-    async function initDB() {
-        db = await idb.openDB(DB_NAME, 1, {
-            upgrade(db) {
-                if (!db.objectStoreNames.contains(STORE_NAME)) {
-                    const store = db.createObjectStore(STORE_NAME, { keyPath: 'uuid' });
-                    store.createIndex('synced', 'synced');
-                    store.createIndex('timestamp', 'timestamp');
-                }
-            },
+            // Run immediately on load
+            runSync();
         });
-    }
 
-    // --- UI LOGIC ---
-    function openForm(type) {
-        currentType = type;
-        document.getElementById('form-title').innerText = `Add ${type}`;
-        document.getElementById('input-panel').classList.add('active');
-        document.getElementById('inp-amount').focus();
-    }
+        // --- IDENTITY SYSTEM (UPDATED) ---
+        function checkIdentity() {
+            const stored = localStorage.getItem('sheetSyncUser');
+            if (!stored) {
+                document.getElementById('identity-modal').style.display = 'flex';
+            } else {
+                currentUser = stored;
+                // Update the display text in the header
+                document.getElementById('current-user-display').innerText = currentUser;
+            }
+        }
 
-    function closeForm() {
-        document.getElementById('input-panel').classList.remove('active');
-        document.getElementById('inp-amount').value = '';
-        document.getElementById('inp-note').value = '';
-    }
+        function setIdentity(user) {
+            localStorage.setItem('sheetSyncUser', user);
+            currentUser = user;
+            document.getElementById('identity-modal').style.display = 'none';
+            checkIdentity(); // Refresh the header display
+        }
 
-    async function saveTransaction() {
-        const amountRaw = parseFloat(document.getElementById('inp-amount').value);
-        if (!amountRaw) return alert("Please enter an amount");
+        // New function to log out
+        function resetIdentity() {
+            if (confirm('Switch user?')) {
+                localStorage.removeItem('sheetSyncUser');
+                location.reload(); // Reloads the page to trigger the modal
+            }
+        }
+        function setIdentity(user) {
+            localStorage.setItem('sheetSyncUser', user);
+            currentUser = user;
+            document.getElementById('identity-modal').style.display = 'none';
+        }
 
-        const category = document.getElementById('inp-category').value;
-        const note = document.getElementById('inp-note').value;
-        
-        // Handle negative for expense
-        const amount = currentType === 'Expense' ? -Math.abs(amountRaw) : Math.abs(amountRaw);
+        // --- INDEXEDDB WRAPPER ---
+        async function initDB() {
+            db = await idb.openDB(DB_NAME, 1, {
+                upgrade(db) {
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        const store = db.createObjectStore(STORE_NAME, { keyPath: 'uuid' });
+                        store.createIndex('synced', 'synced');
+                        store.createIndex('timestamp', 'timestamp');
+                    }
+                },
+            });
+        }
 
-        const tx = {
-            uuid: crypto.randomUUID(),
-            timestamp: new Date().toISOString(),
-            user_tag: currentUser,
-            category: category,
-            amount: amount,
-            note: note,
-            synced: 0 // 0 = Pending, 1 = Synced
-        };
+        // --- UI LOGIC ---
+        function openForm(type) {
+            currentType = type;
+            document.getElementById('form-title').innerText = `Add ${type}`;
+            document.getElementById('input-panel').classList.add('active');
+            document.getElementById('inp-amount').focus();
+        }
 
-        // 1. Save Local
-        await db.put(STORE_NAME, tx);
-        
-        // 2. Update UI
-        closeForm();
-        renderList();
+        function closeForm() {
+            document.getElementById('input-panel').classList.remove('active');
+            document.getElementById('inp-amount').value = '';
+            document.getElementById('inp-note').value = '';
+        }
 
-        // 3. Trigger Sync
-        syncManager.push();
-    }
+        async function saveTransaction() {
+            const amountRaw = parseFloat(document.getElementById('inp-amount').value);
+            if (!amountRaw) return alert("Please enter an amount");
 
-    async function renderList() {
-        const txs = await db.getAllFromIndex(STORE_NAME, 'timestamp');
-        const listEl = document.getElementById('tx-list');
-        listEl.innerHTML = '';
+            const category = document.getElementById('inp-category').value;
+            const note = document.getElementById('inp-note').value;
 
-        let balance = 0;
-        
-        // Sort newest first
-        txs.reverse().forEach(tx => {
-            balance += tx.amount;
-            
-            const li = document.createElement('li');
-            li.className = 'tx-item';
-            
-            const isSynced = tx.synced === 1;
-            const icon = isSynced ? '✓' : '🕒'; // Unicode icons
-            const color = isSynced ? 'text-sub' : 'orange'; // Visual cue
+            // Handle negative for expense
+            const amount = currentType === 'Expense' ? -Math.abs(amountRaw) : Math.abs(amountRaw);
 
-            li.innerHTML = `
+            const tx = {
+                uuid: crypto.randomUUID(),
+                timestamp: new Date().toISOString(),
+                user_tag: currentUser,
+                category: category,
+                amount: amount,
+                note: note,
+                synced: 0 // 0 = Pending, 1 = Synced
+            };
+
+            // 1. Save Local
+            await db.put(STORE_NAME, tx);
+
+            // 2. Update UI
+            closeForm();
+            renderList();
+
+            // 3. Trigger Sync
+            syncManager.push();
+        }
+
+        async function renderList() {
+            const txs = await db.getAllFromIndex(STORE_NAME, 'timestamp');
+            const listEl = document.getElementById('tx-list');
+            listEl.innerHTML = '';
+
+            let balance = 0;
+
+            // Sort newest first
+            txs.reverse().forEach(tx => {
+                balance += tx.amount;
+
+                const li = document.createElement('li');
+                li.className = 'tx-item';
+
+                const isSynced = tx.synced === 1;
+                const icon = isSynced ? '✓' : '🕒'; // Unicode icons
+                const color = isSynced ? 'text-sub' : 'orange'; // Visual cue
+
+                li.innerHTML = `
                 <div class="tx-left">
                     <span class="tx-cat">${tx.category}</span>
                     <span class="tx-meta">${new Date(tx.timestamp).toLocaleDateString()} • ${tx.user_tag}</span>
@@ -378,204 +519,215 @@
                     <span class="tx-icon" style="color: ${isSynced ? '#16a34a' : '#f59e0b'}">${icon}</span>
                 </div>
             `;
-            listEl.appendChild(li);
-        });
+                listEl.appendChild(li);
+            });
 
-        // Update Total Balance
-        const balEl = document.getElementById('total-balance');
-        balEl.innerText = `$${balance.toFixed(2)}`;
-        balEl.className = `balance-amount ${balance >= 0 ? 'pos' : 'neg'}`;
-        // ADD THIS AT THE VERY END OF renderList:
-    renderChart(txs);
-    // Update Budgets (New!)
-    renderBudgets(txs);
-    }
+            // Update Total Balance
+            const balEl = document.getElementById('total-balance');
+            balEl.innerText = `$${balance.toFixed(2)}`;
+            balEl.className = `balance-amount ${balance >= 0 ? 'pos' : 'neg'}`;
+            // ADD THIS AT THE VERY END OF renderList:
+            renderChart(txs);
+            // Update Budgets (New!)
+            renderBudgets(txs);
+        }
 
-    // --- SYNC ENGINE ---
-    const syncManager = {
-        push: async () => {
-            if (!navigator.onLine) {
-                updateStatus('Offline', false);
-                return;
-            }
+        // --- SYNC ENGINE (UPDATED WITH PULL) ---
+        const syncManager = {
+            // 1. UPLOAD Local Changes
+            push: async () => {
+                if (!navigator.onLine) { updateStatus('Offline', false); return; }
 
-            updateStatus('Syncing...', true);
+                const pending = await db.getAllFromIndex(STORE_NAME, 'synced', 0);
+                if (pending.length === 0) return; // Nothing to push
 
-            // 1. Get unsynced items
-            const pending = await db.getAllFromIndex(STORE_NAME, 'synced', 0);
-            
-            if (pending.length === 0) {
-                updateStatus('All Synced', true);
-                return;
-            }
+                updateStatus('Syncing (Push)...', true);
 
-            // 2. Prepare Payload
-            const payload = {
-                action: 'APPEND_ROWS',
-                data: pending // Matches backend expectations
-            };
+                try {
+                    const payload = { action: 'APPEND_ROWS', data: pending };
+                    const response = await fetch(SCRIPT_URL, {
+                        method: "POST",
+                        body: JSON.stringify(payload)
+                    });
+                    const json = await response.json();
 
-            try {
-                // 3. Send to Google Sheets
-                // Note: 'no-cors' mode is opaque, we use standard POST but Apps Script must handle CORS correctly.
-                // However, Apps Script Web Apps allow standard fetching if we follow redirects. 
-                // We use standard fetch here.
-                
-                const response = await fetch(SCRIPT_URL, {
-                    method: "POST",
-                    body: JSON.stringify(payload)
-                });
-                
-                const json = await response.json();
-
-                if (json.status === 'success') {
-                    // 4. Mark as synced locally
-                    const tx = db.transaction(STORE_NAME, 'readwrite');
-                    for (const item of pending) {
-                        const updated = { ...item, synced: 1 };
-                        await tx.store.put(updated);
+                    if (json.status === 'success') {
+                        const tx = db.transaction(STORE_NAME, 'readwrite');
+                        for (const item of pending) {
+                            await tx.store.put({ ...item, synced: 1 });
+                        }
+                        await tx.done;
+                        renderList();
+                        // After pushing, check for new data from others
+                        syncManager.pull();
                     }
-                    await tx.done;
-                    
-                    renderList();
-                    updateStatus('Online', true);
-                } else {
-                    console.error('Sync Error:', json);
-                    updateStatus('Error', false);
-                }
-            } catch (err) {
-                console.error('Network Error', err);
-                updateStatus('Retrying...', false);
-            }
-        }
-    };
-
-    function updateStatus(text, isOnline) {
-        const el = document.getElementById('sync-status');
-        el.innerText = `● ${text}`;
-        el.className = `status-indicator ${isOnline ? 'status-online' : 'status-offline'}`;
-    }
-    // Register Service Worker
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js')
-        .then(() => console.log('Service Worker Ready'))
-        .catch(err => console.error('SW Failed', err));
-}
-// --- CHARTING ENGINE ---
-let chartInstance = null;
-
-function renderChart(transactions) {
-    const ctx = document.getElementById('expenseChart').getContext('2d');
-    
-    // 1. Process Data: Group by Month (Last 6 Months)
-    const months = {};
-    const today = new Date();
-    
-    // Initialize last 6 months with 0
-    for (let i = 5; i >= 0; i--) {
-        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-        const key = d.toLocaleString('default', { month: 'short' });
-        months[key] = { income: 0, expense: 0 };
-    }
-
-    // Sum up transactions
-    transactions.forEach(tx => {
-        const d = new Date(tx.timestamp);
-        const key = d.toLocaleString('default', { month: 'short' });
-        if (months[key]) {
-            if (tx.amount >= 0) months[key].income += tx.amount;
-            else months[key].expense += Math.abs(tx.amount); // Flip negative to positive for bar height
-        }
-    });
-
-    const labels = Object.keys(months);
-    const incomeData = Object.values(months).map(m => m.income);
-    const expenseData = Object.values(months).map(m => m.expense);
-
-    // 2. Destroy old chart if exists (prevent memory leaks)
-    if (chartInstance) chartInstance.destroy();
-
-    // 3. Draw Chart
-    chartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'Income',
-                    data: incomeData,
-                    backgroundColor: '#16a34a',
-                    borderRadius: 4
-                },
-                {
-                    label: 'Expense',
-                    data: expenseData,
-                    backgroundColor: '#dc2626',
-                    borderRadius: 4
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: { beginAtZero: true, grid: { display: false } },
-                x: { grid: { display: false } }
+                } catch (err) { console.error('Push Error', err); }
             },
-            plugins: {
-                legend: { position: 'bottom' }
+
+            // 2. DOWNLOAD Server Changes
+            pull: async () => {
+                if (!navigator.onLine) return;
+                updateStatus('Syncing (Pull)...', true);
+
+                try {
+                    // GET request triggers doGet() in Apps Script
+                    const response = await fetch(SCRIPT_URL);
+                    const json = await response.json();
+
+                    if (json.status === 'success' && json.data.recent_transactions) {
+                        const tx = db.transaction(STORE_NAME, 'readwrite');
+                        const serverRows = json.data.recent_transactions;
+
+                        for (const row of serverRows) {
+                            // Save to local DB (Overwrites if exists, adds if new)
+                            // Ensure we mark it as synced: 1 because it came from server
+                            await tx.store.put({
+                                uuid: row.uuid,
+                                timestamp: row.timestamp,
+                                user_tag: row.user_tag,
+                                category: row.category,
+                                amount: Number(row.amount),
+                                note: row.note,
+                                synced: 1
+                            });
+                        }
+                        await tx.done;
+                        renderList();
+                        updateStatus('Online', true);
+                    }
+                } catch (err) {
+                    console.error('Pull Error', err);
+                    updateStatus('Sync Error', false);
+                }
             }
+        };
+
+        function updateStatus(text, isOnline) {
+            const el = document.getElementById('sync-status');
+            el.innerText = `● ${text}`;
+            el.className = `status-indicator ${isOnline ? 'status-online' : 'status-offline'}`;
         }
-    });
-}
-// --- BUDGET CONFIGURATION ---
-// Customize your limits here!
-const CATEGORY_LIMITS = {
-    'Food': 500,
-    'Transport': 150,
-    'Entertainment': 200,
-    'Utilities': 300,
-    'Housing': 1200
-};
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js')
+                .then(() => console.log('Service Worker Ready'))
+                .catch(err => console.error('SW Failed', err));
+        }
+        // --- CHARTING ENGINE ---
+        let chartInstance = null;
 
-function renderBudgets(transactions) {
-    const listEl = document.getElementById('budget-list');
-    const panelEl = document.getElementById('budget-panel');
-    listEl.innerHTML = '';
+        function renderChart(transactions) {
+            const ctx = document.getElementById('expenseChart').getContext('2d');
 
-    // 1. Filter for CURRENT MONTH only
-    const now = new Date();
-    const currentMonthTx = transactions.filter(tx => {
-        const d = new Date(tx.timestamp);
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && tx.amount < 0; // Expenses are negative
-    });
+            // 1. Process Data: Group by Month (Last 6 Months)
+            const months = {};
+            const today = new Date();
 
-    // 2. Sum Expenses by Category
-    const spending = {};
-    currentMonthTx.forEach(tx => {
-        const cat = tx.category;
-        const amt = Math.abs(tx.amount); // Convert -50 to 50
-        if (!spending[cat]) spending[cat] = 0;
-        spending[cat] += amt;
-    });
+            // Initialize last 6 months with 0
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                const key = d.toLocaleString('default', { month: 'short' });
+                months[key] = { income: 0, expense: 0 };
+            }
 
-    // 3. Generate UI
-    let hasBudgets = false;
+            // Sum up transactions
+            transactions.forEach(tx => {
+                const d = new Date(tx.timestamp);
+                const key = d.toLocaleString('default', { month: 'short' });
+                if (months[key]) {
+                    if (tx.amount >= 0) months[key].income += tx.amount;
+                    else months[key].expense += Math.abs(tx.amount); // Flip negative to positive for bar height
+                }
+            });
 
-    for (const [category, limit] of Object.entries(CATEGORY_LIMITS)) {
-        const spent = spending[category] || 0;
-        if (limit > 0) hasBudgets = true; // Only show if limits exist
+            const labels = Object.keys(months);
+            const incomeData = Object.values(months).map(m => m.income);
+            const expenseData = Object.values(months).map(m => m.expense);
 
-        const percent = Math.min((spent / limit) * 100, 100);
-        
-        // Determine Color
-        let colorClass = 'fill-green';
-        if (spent > limit) colorClass = 'fill-red';
-        else if (spent > (limit * 0.8)) colorClass = 'fill-orange';
+            // 2. Destroy old chart if exists (prevent memory leaks)
+            if (chartInstance) chartInstance.destroy();
 
-        // Create HTML
-        const div = document.createElement('div');
-        div.className = 'budget-item';
-        div.innerHTML = `
+            // 3. Draw Chart
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Income',
+                            data: incomeData,
+                            backgroundColor: '#16a34a',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Expense',
+                            data: expenseData,
+                            backgroundColor: '#dc2626',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true, grid: { display: false } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+        // --- BUDGET CONFIGURATION ---
+        // Customize your limits here!
+        const CATEGORY_LIMITS = {
+            'Food': 500,
+            'Transport': 150,
+            'Entertainment': 200,
+            'Utilities': 300,
+            'Housing': 1200
+        };
+
+        function renderBudgets(transactions) {
+            const listEl = document.getElementById('budget-list');
+            const panelEl = document.getElementById('budget-panel');
+            listEl.innerHTML = '';
+
+            // 1. Filter for CURRENT MONTH only
+            const now = new Date();
+            const currentMonthTx = transactions.filter(tx => {
+                const d = new Date(tx.timestamp);
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && tx.amount < 0; // Expenses are negative
+            });
+
+            // 2. Sum Expenses by Category
+            const spending = {};
+            currentMonthTx.forEach(tx => {
+                const cat = tx.category;
+                const amt = Math.abs(tx.amount); // Convert -50 to 50
+                if (!spending[cat]) spending[cat] = 0;
+                spending[cat] += amt;
+            });
+
+            // 3. Generate UI
+            let hasBudgets = false;
+
+            for (const [category, limit] of Object.entries(CATEGORY_LIMITS)) {
+                const spent = spending[category] || 0;
+                if (limit > 0) hasBudgets = true; // Only show if limits exist
+
+                const percent = Math.min((spent / limit) * 100, 100);
+
+                // Determine Color
+                let colorClass = 'fill-green';
+                if (spent > limit) colorClass = 'fill-red';
+                else if (spent > (limit * 0.8)) colorClass = 'fill-orange';
+
+                // Create HTML
+                const div = document.createElement('div');
+                div.className = 'budget-item';
+                div.innerHTML = `
             <div class="budget-label">
                 <span>${category}</span>
                 <span style="${spent > limit ? 'color: #dc2626; font-weight:bold;' : ''}">
@@ -586,13 +738,14 @@ function renderBudgets(transactions) {
                 <div class="budget-fill ${colorClass}" style="width: ${percent}%"></div>
             </div>
         `;
-        listEl.appendChild(div);
-    }
+                listEl.appendChild(div);
+            }
 
-    // Show panel only if we have configured budgets
-    panelEl.style.display = hasBudgets ? 'block' : 'none';
-}
-</script>
+            // Show panel only if we have configured budgets
+            panelEl.style.display = hasBudgets ? 'block' : 'none';
+        }
+    </script>
 
 </body>
+
 </html>
