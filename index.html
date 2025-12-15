@@ -186,6 +186,9 @@
     <header>
         <div class="balance-label">Current Balance</div>
         <div class="balance-amount pos" id="total-balance">$0.00</div>
+        <div style="margin-top: 10px; font-size: 0.8rem; color: #6b7280; cursor: pointer;" onclick="resetIdentity()">
+        👤 <span id="current-user-display">Unknown</span> (Tap to switch)
+    </div>
     </header>
 
     <div class="actions">
@@ -255,16 +258,32 @@
         syncManager.push(); // Try on load
     });
 
-    // --- IDENTITY SYSTEM ---
+    // --- IDENTITY SYSTEM (UPDATED) ---
     function checkIdentity() {
         const stored = localStorage.getItem('sheetSyncUser');
         if (!stored) {
             document.getElementById('identity-modal').style.display = 'flex';
         } else {
             currentUser = stored;
+            // Update the display text in the header
+            document.getElementById('current-user-display').innerText = currentUser; 
         }
     }
 
+    function setIdentity(user) {
+        localStorage.setItem('sheetSyncUser', user);
+        currentUser = user;
+        document.getElementById('identity-modal').style.display = 'none';
+        checkIdentity(); // Refresh the header display
+    }
+
+    // New function to log out
+    function resetIdentity() {
+        if (confirm('Switch user?')) {
+            localStorage.removeItem('sheetSyncUser');
+            location.reload(); // Reloads the page to trigger the modal
+        }
+    }
     function setIdentity(user) {
         localStorage.setItem('sheetSyncUser', user);
         currentUser = user;
