@@ -154,6 +154,16 @@
             width: 80%;
             max-width: 300px;
         }
+        /* --- Budget Bars --- */
+.budget-item { margin-bottom: 12px; }
+.budget-label { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 4px; }
+.budget-track { width: 100%; background: #e5e7eb; height: 8px; border-radius: 4px; overflow: hidden; }
+.budget-fill { height: 100%; transition: width 0.5s ease; }
+
+/* Colors based on percentage */
+.fill-green { background: #16a34a; }   /* Safe */
+.fill-orange { background: #f59e0b; }  /* Warning (>75%) */
+.fill-red { background: #dc2626; }     /* Over Budget (>100%) */
         .user-grid { display: grid; gap: 10px; margin-top: 20px; }
 
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
@@ -205,6 +215,13 @@
     <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <canvas id="expenseChart"></canvas>
     </div>
+    <div id="budget-panel" style="padding: 0 20px 20px 20px; display: none;">
+    <h3 style="margin-top: 0; font-size: 1rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">
+        Monthly Budgets
+    </h3>
+    <div id="budget-list">
+        </div>
+</div>
 </div>
     <div class="list-header">
         <span>Recent Transactions</span>
@@ -351,6 +368,8 @@
         balEl.className = `balance-amount ${balance >= 0 ? 'pos' : 'neg'}`;
         // ADD THIS AT THE VERY END OF renderList:
     renderChart(txs);
+    // Update Budgets (New!)
+    renderBudgets(txs);
     }
 
     // --- SYNC ENGINE ---
@@ -488,6 +507,71 @@ function renderChart(transactions) {
             }
         }
     });
+}
+// --- BUDGET CONFIGURATION ---
+// Customize your limits here!
+const CATEGORY_LIMITS = {
+    'Food': 500,
+    'Transport': 150,
+    'Entertainment': 200,
+    'Utilities': 300,
+    'Housing': 1200
+};
+
+function renderBudgets(transactions) {
+    const listEl = document.getElementById('budget-list');
+    const panelEl = document.getElementById('budget-panel');
+    listEl.innerHTML = '';
+
+    // 1. Filter for CURRENT MONTH only
+    const now = new Date();
+    const currentMonthTx = transactions.filter(tx => {
+        const d = new Date(tx.timestamp);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && tx.amount < 0; // Expenses are negative
+    });
+
+    // 2. Sum Expenses by Category
+    const spending = {};
+    currentMonthTx.forEach(tx => {
+        const cat = tx.category;
+        const amt = Math.abs(tx.amount); // Convert -50 to 50
+        if (!spending[cat]) spending[cat] = 0;
+        spending[cat] += amt;
+    });
+
+    // 3. Generate UI
+    let hasBudgets = false;
+
+    for (const [category, limit] of Object.entries(CATEGORY_LIMITS)) {
+        const spent = spending[category] || 0;
+        if (limit > 0) hasBudgets = true; // Only show if limits exist
+
+        const percent = Math.min((spent / limit) * 100, 100);
+        
+        // Determine Color
+        let colorClass = 'fill-green';
+        if (spent > limit) colorClass = 'fill-red';
+        else if (spent > (limit * 0.8)) colorClass = 'fill-orange';
+
+        // Create HTML
+        const div = document.createElement('div');
+        div.className = 'budget-item';
+        div.innerHTML = `
+            <div class="budget-label">
+                <span>${category}</span>
+                <span style="${spent > limit ? 'color: #dc2626; font-weight:bold;' : ''}">
+                    $${Math.round(spent)} / $${limit}
+                </span>
+            </div>
+            <div class="budget-track">
+                <div class="budget-fill ${colorClass}" style="width: ${percent}%"></div>
+            </div>
+        `;
+        listEl.appendChild(div);
+    }
+
+    // Show panel only if we have configured budgets
+    panelEl.style.display = hasBudgets ? 'block' : 'none';
 }
 </script>
 
