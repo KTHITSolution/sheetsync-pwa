@@ -524,7 +524,7 @@
 
             // Update Total Balance
             const balEl = document.getElementById('total-balance');
-            balEl.innerText = `$${balance.toFixed(2)}`;
+            balEl.innerText = `฿${balance.toFixed(2)}`;
             balEl.className = `balance-amount ${balance >= 0 ? 'pos' : 'neg'}`;
             // ADD THIS AT THE VERY END OF renderList:
             renderChart(txs);
@@ -731,7 +731,7 @@
             <div class="budget-label">
                 <span>${category}</span>
                 <span style="${spent > limit ? 'color: #dc2626; font-weight:bold;' : ''}">
-                    $${Math.round(spent)} / $${limit}
+                    ฿${Math.round(spent)} / ฿${limit}
                 </span>
             </div>
             <div class="budget-track">
