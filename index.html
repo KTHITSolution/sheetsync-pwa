@@ -300,6 +300,52 @@
                 opacity: 0.6;
             }
         }
+
+        /* Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 34px;
+            height: 20px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: #2563eb;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(14px);
+        }
     </style>
 </head>
 
@@ -347,7 +393,23 @@
                 <button class="btn btn-save" onclick="saveTransaction()">Save</button>
             </div>
         </div>
+        <div
+            style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
 
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h3 style="margin:0; font-size:1rem;">Spending Analysis</h3>
+                <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem;">
+                    <span>Daily</span>
+                    <label class="switch">
+                        <input type="checkbox" id="chart-toggle" onchange="toggleChartMode()">
+                        <span class="slider round"></span>
+                    </label>
+                    <span>All</span>
+                </div>
+            </div>
+
+            <canvas id="expenseChart"></canvas>
+        </div>
         <div style="padding: 0 20px 20px;">
             <div
                 style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
@@ -440,15 +502,25 @@
             'Salary': 0
         };
 
+        // --- STATE ---
         let db;
         let currentUser = null;
         let currentType = 'Expense';
+        let showAllCashflow = false; // Toggle state for Chart
+
+        // Default Config (Fallback until server sync)
+        let CATEGORY_CONFIG = {
+            "Daily Living": { "type": "EXPENSE", "subs": ["Food", "Transport"] },
+            "Assets": { "type": "ASSET", "subs": ["Gold", "Land"] },
+            "Loans": { "type": "LIABILITY", "subs": ["Loan Received", "Loan Repayment"] },
+            "Income": { "type": "INCOME", "subs": ["Salary"] }
+        };
 
         // --- INIT ---
         document.addEventListener('DOMContentLoaded', async () => {
             await initDB();
             checkIdentity();
-            populateCategories(); // Fill dropdowns
+            populateCategoryUI(); // Fill dropdowns
             renderList();
 
             const runSync = () => { syncManager.push(); syncManager.pull(); };
@@ -458,16 +530,28 @@
         });
 
         // --- FORM LOGIC ---
-        function populateCategories() {
-            const catSelect = document.getElementById('inp-category');
-            catSelect.innerHTML = '';
-            Object.keys(CATEGORY_MAP).forEach(cat => {
+        // --- DYNAMIC FORM UI ---
+        function populateCategoryUI() {
+            // Load from local storage if available
+            const stored = localStorage.getItem('myBankConfig');
+            if (stored) CATEGORY_CONFIG = JSON.parse(stored);
+
+            const mainSelect = document.getElementById('inp-category');
+            const currentVal = mainSelect.value;
+
+            mainSelect.innerHTML = '';
+
+            Object.keys(CATEGORY_CONFIG).forEach(cat => {
                 const opt = document.createElement('option');
                 opt.value = cat;
-                opt.innerText = cat;
-                catSelect.appendChild(opt);
+                opt.innerText = cat; // e.g. "Assets & Savings"
+                mainSelect.appendChild(opt);
             });
-            updateSubCategories(); // Init sub-cat
+
+            // Restore selection or default
+            if (currentVal && CATEGORY_CONFIG[currentVal]) mainSelect.value = currentVal;
+
+            updateSubCategories();
         }
 
         function updateSubCategories() {
@@ -475,13 +559,14 @@
             const subSelect = document.getElementById('inp-subcategory');
             subSelect.innerHTML = '';
 
-            const subs = CATEGORY_MAP[mainCat] || [];
-            subs.forEach(sub => {
-                const opt = document.createElement('option');
-                opt.value = sub;
-                opt.innerText = sub;
-                subSelect.appendChild(opt);
-            });
+            if (CATEGORY_CONFIG[mainCat]) {
+                CATEGORY_CONFIG[mainCat].subs.forEach(sub => {
+                    const opt = document.createElement('option');
+                    opt.value = sub;
+                    opt.innerText = sub;
+                    subSelect.appendChild(opt);
+                });
+            }
         }
 
         function openForm(type) {
@@ -536,6 +621,16 @@
                 li.className = 'tx-item';
                 const isSynced = tx.synced === 1;
                 const icon = isSynced ? '✓' : '🕒';
+                // Inside renderList loop
+                let amountColor = 'black';
+                if (tx.amount > 0) amountColor = 'green'; // Income & Loan Received
+                else amountColor = 'red'; // Expenses & Loan Repayment
+
+                // Special Visuals
+                if (tx.category === 'Loans') {
+                    if (tx.sub_category === 'Loan Received') amountColor = '#16a34a'; // Green
+                    if (tx.sub_category === 'Loan Repayment') amountColor = '#dc2626'; // Red
+                }
 
                 // Show "Main - Sub" in the list
                 li.innerHTML = `
@@ -573,22 +668,41 @@
 
         // --- CHART (Group by Main Category) ---
         let chartInstance = null;
+        // --- SMART DASHBOARD LOGIC ---
+
+        function getCategoryType(catName) {
+            return CATEGORY_CONFIG[catName] ? CATEGORY_CONFIG[catName].type : 'EXPENSE';
+        }
+
         function renderChart(transactions) {
             const ctx = document.getElementById('expenseChart').getContext('2d');
             const totals = {};
 
             transactions.forEach(tx => {
-                // Only Expenses, ignore Income
-                if (tx.amount < 0) {
-                    const cat = tx.category; // Group by Main
-                    if (!totals[cat]) totals[cat] = 0;
-                    totals[cat] += Math.abs(tx.amount);
+                // Logic:
+                // 1. If ShowAll=False, IGNORE 'ASSET' and 'LIABILITY' (Pure Expenses only)
+                // 2. Always IGNORE 'INCOME' for the Expense Chart
+                // 3. 'Loan Repayment' (LIABILITY) is effectively an expense flow, but we hide it in Daily View
+
+                const type = getCategoryType(tx.category);
+
+                // Skip Income
+                if (tx.amount >= 0 && type !== 'LIABILITY') return;
+
+                // Filter Logic
+                if (!showAllCashflow) {
+                    if (type === 'ASSET' || type === 'LIABILITY') return; // Hide Capex
                 }
+
+                const cat = tx.category;
+                if (!totals[cat]) totals[cat] = 0;
+                totals[cat] += Math.abs(tx.amount);
             });
 
+            // ... [Chart.js Instantiation remains the same] ...
             if (chartInstance) chartInstance.destroy();
             chartInstance = new Chart(ctx, {
-                type: 'doughnut', // Doughnut is cleaner for Categories
+                type: 'doughnut',
                 data: {
                     labels: Object.keys(totals),
                     datasets: [{
@@ -604,29 +718,27 @@
             });
         }
 
-        // --- BUDGETS (Customizable) ---
-        function getBudgetLimits() {
-            const stored = localStorage.getItem('myBankBudgets');
-            return stored ? JSON.parse(stored) : DEFAULT_LIMITS;
-        }
-
         function renderBudgets(transactions) {
             const limits = getBudgetLimits();
             const listEl = document.getElementById('budget-list');
             listEl.innerHTML = '';
             const now = new Date();
-
-            // Calc Spending per Main Category
             const spending = {};
+
             transactions.forEach(tx => {
                 const d = new Date(tx.timestamp);
-                if (d.getMonth() === now.getMonth() && tx.amount < 0) {
+                const type = getCategoryType(tx.category);
+
+                // STRICTLY Expenses only for Budget Bars. 
+                // buying Land (Asset) should not eat up your Food Budget.
+                if (d.getMonth() === now.getMonth() && type === 'EXPENSE' && tx.amount < 0) {
                     const cat = tx.category;
                     if (!spending[cat]) spending[cat] = 0;
                     spending[cat] += Math.abs(tx.amount);
                 }
             });
 
+            // ... [Drawing logic remains the same] ...
             Object.keys(limits).forEach(cat => {
                 const limit = limits[cat];
                 if (limit <= 0) return;
@@ -644,6 +756,11 @@
                     <div class="budget-track"><div class="budget-fill ${color}" style="width:${pct}%"></div></div>
                 </div>`;
             });
+        }
+        // --- BUDGETS (Customizable) ---
+        function getBudgetLimits() {
+            const stored = localStorage.getItem('myBankBudgets');
+            return stored ? JSON.parse(stored) : DEFAULT_LIMITS;
         }
 
         // --- SETTINGS MODAL ---
@@ -772,28 +889,27 @@
 
             pull: async () => {
                 if (!navigator.onLine) return;
-                // Only show "Updating" if we aren't already showing an error
-                const el = document.getElementById('sync-status');
-                if (!el.classList.contains('status-error')) {
-                    updateStatus('Updating...', 'syncing');
-                }
-
                 try {
                     const res = await fetch(SCRIPT_URL);
                     const json = await res.json();
                     if (json.status === 'success') {
+                        // 1. Update Config
+                        if (json.data.category_config) {
+                            CATEGORY_CONFIG = json.data.category_config;
+                            localStorage.setItem('myBankConfig', JSON.stringify(CATEGORY_CONFIG));
+                            populateCategoryUI(); // Refresh Dropdowns
+                        }
+
+                        // 2. Save Transactions
                         const tx = db.transaction(STORE_NAME, 'readwrite');
                         for (const row of json.data.recent_transactions) {
                             await tx.store.put({ ...row, amount: Number(row.amount), synced: 1 });
                         }
                         await tx.done;
                         renderList();
-                        updateStatus('Online', 'online'); // <--- Green
+                        updateStatus('Online', 'online');
                     }
-                } catch (e) {
-                    console.error(e);
-                    updateStatus('Pull Error', 'error');
-                }
+                } catch (e) { console.error(e); }
             }
         };
 
@@ -895,6 +1011,12 @@
 
             // 3. Trigger Sync
             syncManager.processQueue();
+        }
+        function toggleChartMode() {
+            showAllCashflow = document.getElementById('chart-toggle').checked;
+            // Re-render chart with new filter
+            const txs = db ? Promise.resolve(db.getAllFromIndex(STORE_NAME, 'timestamp')) : [];
+            txs.then(data => renderChart(data));
         }
     </script>
 </body>
