@@ -472,48 +472,25 @@
 
     <script>
         // --- CONFIGURATION ---
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyPS5SBcUIXmA5r37qvUbqOIoKJ5vcHJDRk99O7gm7RTUkSnv24yE-dBJF8SdcA7Nxh/exec'; // <--- PASTE YOUR DEPLOYED URL
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyPS5SBcUIXmA5r37qvUbqOIoKJ5vcHJDRk99O7gm7RTUkSnv24yE-dBJF8SdcA7Nxh/exec'; // <--- CHECK THIS URL
         const DB_NAME = 'MyBankDB';
         const STORE_NAME = 'transactions';
-
-        // --- CATEGORY STRUCTURE (2-LEVEL) ---
-        const CATEGORY_MAP = {
-            "Food": ["Groceries", "Dining Out", "Snacks"],
-            "Family & Support": ["Parent", "Donation", "Gift"],
-            "Childcare": ["Baby", "Education", "Medical"],
-            "Lifestyle & Appearance": ["Clothes", "Shoes", "Cosmetic"],
-            "Agriculture / Business": ["Agri Inputs", "Tools", "Labor"],
-            "Utilities": ["Communication", "Electricity", "Water"],
-            "Transport": ["Fuel", "Maintenance", "Public Transport"],
-            "Assets / Savings": ["Gold", "Stocks", "Savings"],
-            "Salary": ["Salary", "Bonus"]
-        };
-
-        // --- BUDGET DEFAULTS (Main Categories Only) ---
-        const DEFAULT_LIMITS = {
-            'Food': 5000,
-            'Family & Support': 3000,
-            'Childcare': 5000,
-            'Lifestyle & Appearance': 2000,
-            'Agriculture / Business': 5000,
-            'Utilities': 2000,
-            'Transport': 2000,
-            'Assets / Savings': 10000,
-            'Salary': 0
-        };
 
         // --- STATE ---
         let db;
         let currentUser = null;
         let currentType = 'Expense';
-        let showAllCashflow = false; // Toggle state for Chart
+        let showAllCashflow = false;
 
-        // Default Config (Fallback until server sync)
+        // --- MASTER CONFIGURATION (Single Source of Truth) ---
+        // This combines your old categories with the new "Type" logic.
         let CATEGORY_CONFIG = {
-            "Daily Living": { "type": "EXPENSE", "subs": ["Food", "Transport"] },
-            "Assets": { "type": "ASSET", "subs": ["Gold", "Land"] },
-            "Loans": { "type": "LIABILITY", "subs": ["Loan Received", "Loan Repayment"] },
-            "Income": { "type": "INCOME", "subs": ["Salary"] }
+            "Daily Living": { "type": "EXPENSE", "subs": ["Food", "Transport", "Utilities", "Household", "Family"] },
+            "Lifestyle": { "type": "EXPENSE", "subs": ["Clothes", "Cosmetic", "Entertainment"] },
+            "Agriculture": { "type": "EXPENSE", "subs": ["Agri Inputs", "Tools", "Labor"] },
+            "Assets & Savings": { "type": "ASSET", "subs": ["Gold", "Stocks", "Land", "Building", "Savings"] },
+            "Loans": { "type": "LIABILITY", "subs": ["Loan Received", "Loan Repayment", "Loan Interest"] },
+            "Income": { "type": "INCOME", "subs": ["Salary", "Bonus", "Other"] }
         };
 
         // --- INIT ---
@@ -914,23 +891,24 @@
         };
 
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
-        // --- EDIT LOGIC ---
+        // --- EDIT LOGIC (Updated for Phase 4) ---
 
         function openEditModal(uuid) {
             db.get(STORE_NAME, uuid).then(tx => {
                 if (!tx) return alert("Transaction not found locally.");
 
                 document.getElementById('edit-uuid').value = tx.uuid;
-                // Format date for datetime-local input (YYYY-MM-DDTHH:MM)
                 const dateStr = new Date(tx.timestamp).toISOString().slice(0, 16);
                 document.getElementById('edit-date').value = dateStr;
-                document.getElementById('edit-amount').value = Math.abs(tx.amount); // Show absolute value
+                document.getElementById('edit-amount').value = Math.abs(tx.amount);
                 document.getElementById('edit-note').value = tx.note || '';
 
-                // Populate Categories
+                // Populate Main Categories from Config
                 const catSelect = document.getElementById('edit-category');
                 catSelect.innerHTML = '';
-                Object.keys(CATEGORY_MAP).forEach(cat => {
+
+                // 1. Fill Main Categories
+                Object.keys(CATEGORY_CONFIG).forEach(cat => {
                     const opt = document.createElement('option');
                     opt.value = cat;
                     opt.innerText = cat;
@@ -938,7 +916,7 @@
                     catSelect.appendChild(opt);
                 });
 
-                // Populate Sub-Categories & Select current
+                // 2. Fill Sub-Categories based on current selection
                 updateEditSubCategories(tx.sub_category);
 
                 document.getElementById('edit-modal').style.display = 'flex';
@@ -949,13 +927,17 @@
             const mainCat = document.getElementById('edit-category').value;
             const subSelect = document.getElementById('edit-subcategory');
             subSelect.innerHTML = '';
-            const subs = CATEGORY_MAP[mainCat] || [];
-            subs.forEach(sub => {
-                const opt = document.createElement('option');
-                opt.value = sub;
-                opt.innerText = sub;
-                subSelect.appendChild(opt);
-            });
+
+            // Use CATEGORY_CONFIG instead of the old Map
+            if (CATEGORY_CONFIG[mainCat]) {
+                CATEGORY_CONFIG[mainCat].subs.forEach(sub => {
+                    const opt = document.createElement('option');
+                    opt.value = sub;
+                    opt.innerText = sub;
+                    subSelect.appendChild(opt);
+                });
+            }
+
             if (preselect) subSelect.value = preselect;
         }
 
