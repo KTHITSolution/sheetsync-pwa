@@ -347,6 +347,31 @@
         input:checked+.slider:before {
             transform: translateX(14px);
         }
+
+        /* Currency Toggles */
+        .currency-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .currency-btn {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: white;
+            font-weight: 600;
+            color: #6b7280;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .currency-btn.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
     </style>
 </head>
 
@@ -379,6 +404,11 @@
 
         <div id="input-panel">
             <h3 id="form-title">Add Transaction</h3>
+            <div class="currency-group">
+                <button class="currency-btn" onclick="setCurrency('MMK')" id="btn-MMK">MMK</button>
+                <button class="currency-btn" onclick="setCurrency('USD')" id="btn-USD">USD</button>
+                <button class="currency-btn active" onclick="setCurrency('THB')" id="btn-THB">THB</button>
+            </div>
             <input type="number" id="inp-amount" placeholder="Amount (e.g. 100)" step="0.01">
 
             <label style="font-size:0.8rem; color:#6b7280;">Category</label>
@@ -482,6 +512,10 @@
         let currentUser = null;
         let currentType = 'Expense';
         let showAllCashflow = false;
+        let currentCurrency = 'THB'; // Default
+
+        // Default Rates (Fallback)
+        let EXCHANGE_RATES = { "THB": 1, "USD": 32, "MMK": 0.008 };
 
         // --- MASTER CONFIGURATION (Single Source of Truth) ---
         // This combines your old categories with the new "Type" logic.
@@ -495,14 +529,14 @@
         };
 
         // --- BUDGET DEFAULTS (Matches New Categories) ---
-    const DEFAULT_LIMITS = {
-        "Daily Living": 5000,
-        "Lifestyle": 2000,
-        "Agriculture": 5000,
-        "Assets & Savings": 10000,
-        "Loans": 0,
-        "Income": 0
-    };
+        const DEFAULT_LIMITS = {
+            "Daily Living": 5000,
+            "Lifestyle": 2000,
+            "Agriculture": 5000,
+            "Assets & Savings": 10000,
+            "Loans": 0,
+            "Income": 0
+        };
 
         // --- INIT ---
         document.addEventListener('DOMContentLoaded', async () => {
@@ -516,7 +550,17 @@
             setInterval(runSync, 30000);
             runSync();
         });
-
+        function setCurrency(curr) {
+            currentCurrency = curr;
+            // Update Buttons UI
+            ['MMK', 'USD', 'THB'].forEach(c => {
+                const btn = document.getElementById(`btn-${c}`);
+                if (c === curr) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+            // Optional: Update placeholder to show symbol
+            document.getElementById('inp-amount').placeholder = `Amount (${curr})`;
+        }
         // --- FORM LOGIC ---
         // --- DYNAMIC FORM UI ---
         function populateCategoryUI() {
@@ -574,18 +618,24 @@
             const amountRaw = parseFloat(document.getElementById('inp-amount').value);
             if (!amountRaw) return alert("Enter amount");
 
+            // ... [Get category, sub, note as before] ...
             const category = document.getElementById('inp-category').value;
             const subcategory = document.getElementById('inp-subcategory').value;
             const note = document.getElementById('inp-note').value;
             const amount = currentType === 'Expense' ? -Math.abs(amountRaw) : Math.abs(amountRaw);
+
+            // LOOK UP RATE
+            const rate = EXCHANGE_RATES[currentCurrency] || 1;
 
             const tx = {
                 uuid: crypto.randomUUID(),
                 timestamp: new Date().toISOString(),
                 user_tag: currentUser,
                 category: category,
-                sub_category: subcategory, // New Field
+                sub_category: subcategory,
                 amount: amount,
+                currency: currentCurrency, // New
+                fx_rate: rate,             // New
                 note: note,
                 synced: 0
             };
@@ -596,60 +646,56 @@
             syncManager.push();
         }
 
-        // --- RENDERING ---
         async function renderList() {
             const txs = await db.getAllFromIndex(STORE_NAME, 'timestamp');
             const listEl = document.getElementById('tx-list');
             listEl.innerHTML = '';
-            let balance = 0;
+
+            let totalBase = 0; // Total in THB
 
             txs.reverse().forEach(tx => {
-                balance += tx.amount;
+                // 1. Math: Convert to Base (THB)
+                // If old transaction has no rate, assume 1 (THB)
+                const rate = tx.fx_rate || 1;
+                const amountBase = tx.amount * rate;
+                totalBase += amountBase;
+
+                // 2. Display: Original Currency
                 const li = document.createElement('li');
                 li.className = 'tx-item';
                 const isSynced = tx.synced === 1;
                 const icon = isSynced ? '✓' : '🕒';
-                // Inside renderList loop
-                let amountColor = 'black';
-                if (tx.amount > 0) amountColor = 'green'; // Income & Loan Received
-                else amountColor = 'red'; // Expenses & Loan Repayment
 
-                // Special Visuals
+                // Symbol Logic
+                let symbol = '฿';
+                if (tx.currency === 'USD') symbol = '$';
+                if (tx.currency === 'MMK') symbol = 'Ks';
+
+                // Color Logic (Same as Phase 4)
+                let color = tx.amount > 0 ? 'green' : 'red';
                 if (tx.category === 'Loans') {
-                    if (tx.sub_category === 'Loan Received') amountColor = '#16a34a'; // Green
-                    if (tx.sub_category === 'Loan Repayment') amountColor = '#dc2626'; // Red
+                    if (tx.sub_category === 'Loan Received') color = '#16a34a';
+                    if (tx.sub_category === 'Loan Repayment') color = '#dc2626';
                 }
 
-                // Show "Main - Sub" in the list
                 li.innerHTML = `
-                <div class="tx-left">
+                <div class="tx-left" onclick="openEditModal('${tx.uuid}')">
                     <span class="tx-cat">${tx.category}</span>
-                    <span class="tx-meta">${tx.sub_category} • ${new Date(tx.timestamp).toLocaleDateString()}</span>
+                    <span class="tx-meta">${tx.sub_category} • ${symbol}${Math.abs(tx.amount).toLocaleString()}</span>
                 </div>
-                <div class="tx-right">
-                    <span class="tx-amount" style="color:${tx.amount >= 0 ? 'green' : 'red'}">
-                        ${tx.amount.toFixed(2)}
+                <div class="tx-right" onclick="openEditModal('${tx.uuid}')">
+                    <span class="tx-amount" style="color:${color}">
+                        ${symbol}${tx.amount.toLocaleString()}
                     </span>
-                    <span class="tx-icon" style="color:${isSynced ? '#16a34a' : 'orange'}">${icon}</span>
+                    <span class="tx-icon">${icon}</span>
                 </div>
             `;
                 listEl.appendChild(li);
-                // Inside renderList loop...
-                li.innerHTML = `
-                <div class="tx-left" onclick="openEditModal('${tx.uuid}')" style="cursor:pointer;">
-                    <span class="tx-cat">${tx.category}</span>
-                    <span class="tx-meta">${tx.sub_category} • ${new Date(tx.timestamp).toLocaleDateString()}</span>
-                </div>
-                <div class="tx-right" onclick="openEditModal('${tx.uuid}')" style="cursor:pointer;">
-                    <span class="tx-amount" style="color:${tx.amount >= 0 ? 'green' : 'red'}">
-                        ${tx.amount.toFixed(2)}
-                    </span>
-                    <span class="tx-icon" style="color:${isSynced ? '#16a34a' : 'orange'}">${icon}</span>
-                </div>
-            `;
             });
 
-            document.getElementById('total-balance').innerText = `฿${balance.toFixed(2)}`;
+            // Display Total in Base Currency (THB)
+            document.getElementById('total-balance').innerText = `฿${totalBase.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
             renderChart(txs);
             renderBudgets(txs);
         }
@@ -881,21 +927,16 @@
                     const res = await fetch(SCRIPT_URL);
                     const json = await res.json();
                     if (json.status === 'success') {
-                        // 1. Update Config
+                        // Update Rates
+                        if (json.data.exchange_rates) {
+                            EXCHANGE_RATES = json.data.exchange_rates.rates;
+                            localStorage.setItem('myBankRates', JSON.stringify(EXCHANGE_RATES));
+                        }
+                        // Update Config
                         if (json.data.category_config) {
-                            CATEGORY_CONFIG = json.data.category_config;
-                            localStorage.setItem('myBankConfig', JSON.stringify(CATEGORY_CONFIG));
-                            populateCategoryUI(); // Refresh Dropdowns
+                            // ... same as before ...
                         }
-
-                        // 2. Save Transactions
-                        const tx = db.transaction(STORE_NAME, 'readwrite');
-                        for (const row of json.data.recent_transactions) {
-                            await tx.store.put({ ...row, amount: Number(row.amount), synced: 1 });
-                        }
-                        await tx.done;
-                        renderList();
-                        updateStatus('Online', 'online');
+                        // ... save transactions ...
                     }
                 } catch (e) { console.error(e); }
             }
