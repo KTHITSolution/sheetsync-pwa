@@ -327,6 +327,34 @@
                 </div>
             </div>
         </div>
+        <div id="edit-modal"
+            style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:150; align-items:center; justify-content:center;">
+            <div style="background:white; padding:20px; border-radius:12px; width:85%; max-width:320px;">
+                <h3>Edit Transaction</h3>
+                <input type="hidden" id="edit-uuid">
+                <input type="datetime-local" id="edit-date"
+                    style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
+
+                <label style="font-size:0.8rem; color:#666;">Category</label>
+                <select id="edit-category" onchange="updateEditSubCategories()"
+                    style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;"></select>
+
+                <label style="font-size:0.8rem; color:#666;">Sub-Category</label>
+                <select id="edit-subcategory"
+                    style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;"></select>
+
+                <input type="number" id="edit-amount" placeholder="Amount" step="0.01"
+                    style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
+                <input type="text" id="edit-note" placeholder="Note"
+                    style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
+
+                <div style="display:flex; gap:10px;">
+                    <button onclick="document.getElementById('edit-modal').style.display='none'"
+                        class="btn btn-cancel">Cancel</button>
+                    <button onclick="saveEdit()" class="btn btn-save">Save Changes</button>
+                </div>
+            </div>
+        </div>
 
         <div class="list-header">
             <span>Recent Transactions</span>
@@ -337,7 +365,7 @@
 
     <script>
         // --- CONFIGURATION ---
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwOXiiLoL092xNecSS2hOes11PBPWgaEfitkT__eusnlxL_YbiRWZ5yXClJRZqbGCkd/exec'; // <--- PASTE YOUR DEPLOYED URL
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwiMkbUVXqu-7dPl6Z6cpbgFJK7xtseGF8jGUAiQntPUPJe6dYKd_4Lz3hgn18S3Bcr/exec'; // <--- PASTE YOUR DEPLOYED URL
         const DB_NAME = 'MyBankDB';
         const STORE_NAME = 'transactions';
 
@@ -478,6 +506,19 @@
                 </div>
             `;
                 listEl.appendChild(li);
+                // Inside renderList loop...
+                li.innerHTML = `
+                <div class="tx-left" onclick="openEditModal('${tx.uuid}')" style="cursor:pointer;">
+                    <span class="tx-cat">${tx.category}</span>
+                    <span class="tx-meta">${tx.sub_category} • ${new Date(tx.timestamp).toLocaleDateString()}</span>
+                </div>
+                <div class="tx-right" onclick="openEditModal('${tx.uuid}')" style="cursor:pointer;">
+                    <span class="tx-amount" style="color:${tx.amount >= 0 ? 'green' : 'red'}">
+                        ${tx.amount.toFixed(2)}
+                    </span>
+                    <span class="tx-icon" style="color:${isSynced ? '#16a34a' : 'orange'}">${icon}</span>
+                </div>
+            `;
             });
 
             document.getElementById('total-balance').innerText = `฿${balance.toFixed(2)}`;
@@ -590,12 +631,16 @@
 
         // --- IDB & SYNC ---
         async function initDB() {
-            db = await idb.openDB(DB_NAME, 2, { // Version bump for schema changes if needed
+            db = await idb.openDB(DB_NAME, 3, { // Bump Version to 3!
                 upgrade(db) {
                     if (!db.objectStoreNames.contains(STORE_NAME)) {
                         const store = db.createObjectStore(STORE_NAME, { keyPath: 'uuid' });
                         store.createIndex('synced', 'synced');
                         store.createIndex('timestamp', 'timestamp');
+                    }
+                    // New Store for Queueing Edits
+                    if (!db.objectStoreNames.contains('syncQueue')) {
+                        db.createObjectStore('syncQueue', { keyPath: 'id', autoIncrement: true });
                     }
                 },
             });
@@ -614,21 +659,54 @@
         function resetIdentity() { if (confirm('Switch user?')) { localStorage.removeItem('sheetSyncUser'); location.reload(); } }
 
         const syncManager = {
-            push: async () => {
-                if (!navigator.onLine) { document.getElementById('sync-status').innerText = '● Offline'; return; }
-                const pending = await db.getAllFromIndex(STORE_NAME, 'synced', 0);
-                if (pending.length === 0) { document.getElementById('sync-status').innerText = '● Online'; return; }
-                document.getElementById('sync-status').innerText = '● Syncing...';
-
-                try {
-                    await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: 'APPEND_ROWS', data: pending }) });
-                    const tx = db.transaction(STORE_NAME, 'readwrite');
-                    for (const item of pending) await tx.store.put({ ...item, synced: 1 });
-                    await tx.done;
-                    renderList();
-                    syncManager.pull();
-                } catch (e) { console.error(e); }
+            push: async () => { /* Wrapper for backward compatibility if needed, or call processQueue directly */
+                syncManager.processQueue();
             },
+
+            processQueue: async () => {
+                if (!navigator.onLine) { updateStatus('Offline', false); return; }
+
+                // A. Handle NEW Transactions (Append)
+                const pending = await db.getAllFromIndex(STORE_NAME, 'synced', 0);
+                if (pending.length > 0) {
+                    updateStatus('Syncing (New)...', true);
+                    try {
+                        await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: 'APPEND_ROWS', data: pending }) });
+                        const tx = db.transaction(STORE_NAME, 'readwrite');
+                        for (const item of pending) await tx.store.put({ ...item, synced: 1 });
+                        await tx.done;
+                    } catch (e) { console.error("Append Failed", e); }
+                }
+
+                // B. Handle EDITS (From Queue)
+                const editJobs = await db.getAll('syncQueue');
+                if (editJobs.length > 0) {
+                    updateStatus('Syncing (Edits)...', true);
+                    for (const job of editJobs) {
+                        try {
+                            const res = await fetch(SCRIPT_URL, {
+                                method: "POST",
+                                body: JSON.stringify({ action: job.type, data: job.payload })
+                            });
+                            const json = await res.json();
+
+                            if (json.status === 'success') {
+                                // Remove job from queue on success
+                                await db.delete('syncQueue', job.id);
+                            } else {
+                                console.error("Edit Failed on Server:", json);
+                            }
+                        } catch (e) { console.error("Edit Network Fail", e); }
+                    }
+                }
+
+                updateStatus('Online', true);
+                renderList();
+
+                // C. Pull latest data
+                syncManager.pull();
+            },
+
             pull: async () => {
                 if (!navigator.onLine) return;
                 try {
@@ -647,6 +725,104 @@
         };
 
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+        // --- EDIT LOGIC ---
+
+        function openEditModal(uuid) {
+            db.get(STORE_NAME, uuid).then(tx => {
+                if (!tx) return alert("Transaction not found locally.");
+
+                document.getElementById('edit-uuid').value = tx.uuid;
+                // Format date for datetime-local input (YYYY-MM-DDTHH:MM)
+                const dateStr = new Date(tx.timestamp).toISOString().slice(0, 16);
+                document.getElementById('edit-date').value = dateStr;
+                document.getElementById('edit-amount').value = Math.abs(tx.amount); // Show absolute value
+                document.getElementById('edit-note').value = tx.note || '';
+
+                // Populate Categories
+                const catSelect = document.getElementById('edit-category');
+                catSelect.innerHTML = '';
+                Object.keys(CATEGORY_MAP).forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat;
+                    opt.innerText = cat;
+                    if (cat === tx.category) opt.selected = true;
+                    catSelect.appendChild(opt);
+                });
+
+                // Populate Sub-Categories & Select current
+                updateEditSubCategories(tx.sub_category);
+
+                document.getElementById('edit-modal').style.display = 'flex';
+            });
+        }
+
+        function updateEditSubCategories(preselect = null) {
+            const mainCat = document.getElementById('edit-category').value;
+            const subSelect = document.getElementById('edit-subcategory');
+            subSelect.innerHTML = '';
+            const subs = CATEGORY_MAP[mainCat] || [];
+            subs.forEach(sub => {
+                const opt = document.createElement('option');
+                opt.value = sub;
+                opt.innerText = sub;
+                subSelect.appendChild(opt);
+            });
+            if (preselect) subSelect.value = preselect;
+        }
+
+        async function saveEdit() {
+            const uuid = document.getElementById('edit-uuid').value;
+            const dateVal = document.getElementById('edit-date').value;
+            const cat = document.getElementById('edit-category').value;
+            const sub = document.getElementById('edit-subcategory').value;
+            const amtRaw = parseFloat(document.getElementById('edit-amount').value);
+            const note = document.getElementById('edit-note').value;
+
+            if (!amtRaw) return alert("Invalid Amount");
+
+            // Get original to know if it was income or expense
+            const original = await db.get(STORE_NAME, uuid);
+            const isExpense = original.amount < 0;
+            const finalAmount = isExpense ? -Math.abs(amtRaw) : Math.abs(amtRaw);
+
+            const updatedTx = {
+                ...original,
+                timestamp: new Date(dateVal).toISOString(),
+                category: cat,
+                sub_category: sub,
+                amount: finalAmount,
+                note: note,
+                // Keep 'synced' status as is? No.
+                // If it was already synced (1), we leave it as 1 but queue an EDIT job.
+                // If it was pending (0), we leave it as 0 and the APPEND logic will pick up the new values.
+            };
+
+            // 1. Optimistic Update (Local)
+            await db.put(STORE_NAME, updatedTx);
+            document.getElementById('edit-modal').style.display = 'none';
+            renderList(); // Update UI immediately
+
+            // 2. Queue the Edit Job
+            // If the item was already synced to Google Sheets, we must send an EDIT request.
+            if (original.synced === 1) {
+                const job = {
+                    type: 'EDIT_TRANSACTION',
+                    payload: {
+                        id: uuid,
+                        date: updatedTx.timestamp,
+                        category: cat,
+                        sub_category: sub,
+                        amount: finalAmount,
+                        note: note
+                    },
+                    createdAt: Date.now()
+                };
+                await db.put('syncQueue', job);
+            }
+
+            // 3. Trigger Sync
+            syncManager.processQueue();
+        }
     </script>
 </body>
 
