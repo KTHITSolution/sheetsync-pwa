@@ -255,6 +255,51 @@
                 transform: translateY(0);
             }
         }
+
+        /* --- Status Indicators --- */
+        .status-indicator {
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .status-online {
+            color: #16a34a;
+        }
+
+        /* Green */
+        .status-syncing {
+            color: #f59e0b;
+            animation: pulse 1.5s infinite;
+        }
+
+        /* Orange + Pulse */
+        .status-offline {
+            color: #6b7280;
+        }
+
+        /* Gray */
+        .status-error {
+            color: #dc2626;
+        }
+
+        /* Red */
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.6;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.6;
+            }
+        }
     </style>
 </head>
 
@@ -628,6 +673,20 @@
             closeBudgetSettings();
             renderList();
         }
+        // --- HELPER: STATUS UPDATER ---
+        function updateStatus(text, type) {
+            const el = document.getElementById('sync-status');
+            if (!el) return; // Safety check
+
+            el.innerText = `● ${text}`;
+            el.className = 'status-indicator'; // Reset classes
+
+            // Handle specific states
+            if (type === 'online' || type === true) el.classList.add('status-online');
+            else if (type === 'syncing') el.classList.add('status-syncing');
+            else if (type === 'error') el.classList.add('status-error');
+            else el.classList.add('status-offline');
+        }
 
         // --- IDB & SYNC ---
         async function initDB() {
@@ -659,29 +718,33 @@
         function resetIdentity() { if (confirm('Switch user?')) { localStorage.removeItem('sheetSyncUser'); location.reload(); } }
 
         const syncManager = {
-            push: async () => { /* Wrapper for backward compatibility if needed, or call processQueue directly */
+            push: async () => {
                 syncManager.processQueue();
             },
 
             processQueue: async () => {
-                if (!navigator.onLine) { updateStatus('Offline', false); return; }
+                if (!navigator.onLine) { updateStatus('Offline', 'offline'); return; }
 
                 // A. Handle NEW Transactions (Append)
                 const pending = await db.getAllFromIndex(STORE_NAME, 'synced', 0);
                 if (pending.length > 0) {
-                    updateStatus('Syncing (New)...', true);
+                    updateStatus('Syncing...', 'syncing'); // <--- Orange
                     try {
                         await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: 'APPEND_ROWS', data: pending }) });
                         const tx = db.transaction(STORE_NAME, 'readwrite');
                         for (const item of pending) await tx.store.put({ ...item, synced: 1 });
                         await tx.done;
-                    } catch (e) { console.error("Append Failed", e); }
+                    } catch (e) {
+                        console.error("Append Failed", e);
+                        updateStatus('Sync Error', 'error'); // <--- Red
+                        return;
+                    }
                 }
 
                 // B. Handle EDITS (From Queue)
                 const editJobs = await db.getAll('syncQueue');
                 if (editJobs.length > 0) {
-                    updateStatus('Syncing (Edits)...', true);
+                    updateStatus('Updating Edits...', 'syncing'); // <--- Orange
                     for (const job of editJobs) {
                         try {
                             const res = await fetch(SCRIPT_URL, {
@@ -691,17 +754,17 @@
                             const json = await res.json();
 
                             if (json.status === 'success') {
-                                // Remove job from queue on success
                                 await db.delete('syncQueue', job.id);
                             } else {
                                 console.error("Edit Failed on Server:", json);
+                                updateStatus('Edit Error', 'error'); // <--- Red
                             }
-                        } catch (e) { console.error("Edit Network Fail", e); }
+                        } catch (e) {
+                            console.error("Edit Network Fail", e);
+                            updateStatus('Net Error', 'error');
+                        }
                     }
                 }
-
-                updateStatus('Online', true);
-                renderList();
 
                 // C. Pull latest data
                 syncManager.pull();
@@ -709,6 +772,12 @@
 
             pull: async () => {
                 if (!navigator.onLine) return;
+                // Only show "Updating" if we aren't already showing an error
+                const el = document.getElementById('sync-status');
+                if (!el.classList.contains('status-error')) {
+                    updateStatus('Updating...', 'syncing');
+                }
+
                 try {
                     const res = await fetch(SCRIPT_URL);
                     const json = await res.json();
@@ -719,8 +788,12 @@
                         }
                         await tx.done;
                         renderList();
+                        updateStatus('Online', 'online'); // <--- Green
                     }
-                } catch (e) { console.error(e); }
+                } catch (e) {
+                    console.error(e);
+                    updateStatus('Pull Error', 'error');
+                }
             }
         };
 
