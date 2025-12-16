@@ -493,6 +493,16 @@
             "Income": { "type": "INCOME", "subs": ["Salary", "Bonus", "Other"] }
         };
 
+        // --- BUDGET DEFAULTS (Matches New Categories) ---
+    const DEFAULT_LIMITS = {
+        "Daily Living": 5000,
+        "Lifestyle": 2000,
+        "Agriculture": 5000,
+        "Assets & Savings": 10000,
+        "Loans": 0,
+        "Income": 0
+    };
+
         // --- INIT ---
         document.addEventListener('DOMContentLoaded', async () => {
             await initDB();
