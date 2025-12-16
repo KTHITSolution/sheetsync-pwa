@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sheetsync-v3';
+const CACHE_NAME = 'mybank-v4';
 const ASSETS = [
   './',
   './index.html',

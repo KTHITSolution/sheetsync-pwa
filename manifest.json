@@ -1,6 +1,6 @@
 {
-  "name": "SheetSync Expenses",
-  "short_name": "SheetSync",
+  "name": "My Bank",
+  "short_name": "My Bank",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f4f6f8",
