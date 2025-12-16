@@ -301,6 +301,79 @@
                 transform: translateY(0);
             }
         }
+
+        /* --- Budget & Settings Modal --- */
+        .budget-item {
+            margin-bottom: 15px;
+        }
+
+        .budget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        .budget-track {
+            background: #e5e7eb;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .budget-fill {
+            height: 100%;
+            transition: width 0.3s;
+        }
+
+        .fill-green {
+            background: #16a34a;
+        }
+
+        .fill-orange {
+            background: #f59e0b;
+        }
+
+        .fill-red {
+            background: #dc2626;
+        }
+
+        /* Modal Styles */
+        #budget-settings-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .settings-content {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            width: 85%;
+            max-width: 320px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .setting-row {
+            margin-bottom: 12px;
+        }
+
+        .setting-row label {
+            display: block;
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
     </style>
 </head>
 
@@ -353,6 +426,28 @@
         <div style="padding: 0 20px; margin-bottom: 20px;">
             <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                 <canvas id="expenseChart"></canvas>
+            </div>
+            <div style="padding: 0 20px 20px 20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h3 style="margin:0; font-size:1rem; color:#6b7280; text-transform:uppercase; letter-spacing:1px;">
+                        Monthly Budgets</h3>
+                    <button onclick="openBudgetSettings()"
+                        style="background:none; border:none; font-size:1.2rem; cursor:pointer; padding:5px;">⚙️</button>
+                </div>
+                <div id="budget-list">
+                </div>
+            </div>
+
+            <div id="budget-settings-modal">
+                <div class="settings-content">
+                    <h3 style="margin-top:0;">Set Budget Limits (฿)</h3>
+                    <div id="budget-inputs">
+                    </div>
+                    <div class="form-actions" style="margin-top:20px;">
+                        <button class="btn btn-cancel" onclick="closeBudgetSettings()">Cancel</button>
+                        <button class="btn btn-save" onclick="saveBudgetSettings()">Save</button>
+                    </div>
+                </div>
             </div>
             <div id="budget-panel" style="padding: 0 20px 20px 20px; display: none;">
                 <h3
@@ -612,6 +707,103 @@
             navigator.serviceWorker.register('./sw.js')
                 .then(() => console.log('Service Worker Ready'))
                 .catch(err => console.error('SW Failed', err));
+        }
+        // --- BUDGET ENGINE (CUSTOMIZABLE) ---
+        const DEFAULT_LIMITS = {
+            'Food': 5000,
+            'Transport': 2000,
+            'Housing': 8000,
+            'Utilities': 2000,
+            'Entertainment': 3000,
+            'Salary': 0, // Income usually doesn't have a limit
+            'Other': 2000
+        };
+
+        function getBudgetLimits() {
+            const stored = localStorage.getItem('myBankBudgets');
+            return stored ? JSON.parse(stored) : DEFAULT_LIMITS;
+        }
+
+        function renderBudgets(transactions) {
+            const limits = getBudgetLimits();
+            const listEl = document.getElementById('budget-list');
+            listEl.innerHTML = '';
+
+            // 1. Filter Current Month Expenses
+            const now = new Date();
+            const currentMonthTx = transactions.filter(tx => {
+                const d = new Date(tx.timestamp);
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && tx.amount < 0;
+            });
+
+            // 2. Sum by Category
+            const spending = {};
+            currentMonthTx.forEach(tx => {
+                const cat = tx.category;
+                if (!spending[cat]) spending[cat] = 0;
+                spending[cat] += Math.abs(tx.amount);
+            });
+
+            // 3. Draw Bars
+            Object.keys(limits).forEach(cat => {
+                const limit = limits[cat];
+                if (limit <= 0) return; // Skip categories with 0 limit (like Income)
+
+                const spent = spending[cat] || 0;
+                const pct = Math.min((spent / limit) * 100, 100);
+
+                let color = 'fill-green';
+                if (spent > limit) color = 'fill-red';
+                else if (spent > limit * 0.8) color = 'fill-orange';
+
+                const div = document.createElement('div');
+                div.className = 'budget-item';
+                div.innerHTML = `
+            <div class="budget-header">
+                <span>${cat}</span>
+                <span>฿${spent.toLocaleString()} / ฿${limit.toLocaleString()}</span>
+            </div>
+            <div class="budget-track">
+                <div class="budget-fill ${color}" style="width: ${pct}%"></div>
+            </div>
+        `;
+                listEl.appendChild(div);
+            });
+        }
+
+        // Settings Modal Functions
+        function openBudgetSettings() {
+            const limits = getBudgetLimits();
+            const container = document.getElementById('budget-inputs');
+            container.innerHTML = '';
+
+            Object.keys(limits).forEach(cat => {
+                if (cat === 'Salary') return; // Don't budget salary
+                container.innerHTML += `
+            <div class="setting-row">
+                <label>${cat}</label>
+                <input type="number" id="limit-${cat}" value="${limits[cat]}" style="width:100%; padding:8px; border:1px solid #e5e7eb; border-radius:6px; font-size:16px;">
+            </div>
+        `;
+            });
+            document.getElementById('budget-settings-modal').style.display = 'flex';
+        }
+
+        function closeBudgetSettings() {
+            document.getElementById('budget-settings-modal').style.display = 'none';
+        }
+
+        function saveBudgetSettings() {
+            const newLimits = { ...getBudgetLimits() };
+            Object.keys(newLimits).forEach(cat => {
+                const input = document.getElementById(`limit-${cat}`);
+                if (input) {
+                    newLimits[cat] = Number(input.value);
+                }
+            });
+            localStorage.setItem('myBankBudgets', JSON.stringify(newLimits));
+            closeBudgetSettings();
+            renderList(); // Refresh UI
         }
         // --- CHARTING ENGINE ---
         let chartInstance = null;
