@@ -983,9 +983,20 @@
         }
 
         function renderBudgets(transactions) {
-            const limits = getBudgetLimits();
+            // Safety Check: Use defaults if getBudgetLimits fails
+            let limits = {};
+            try {
+                limits = getBudgetLimits();
+                if (!limits || Object.keys(limits).length === 0) throw new Error("No limits");
+            } catch (e) {
+                console.warn("Budget error, using defaults", e);
+                limits = (typeof DEFAULT_LIMITS !== 'undefined') ? DEFAULT_LIMITS : {};
+            }
+
             const listEl = document.getElementById('budget-list');
+            if (!listEl) return;
             listEl.innerHTML = '';
+
             const now = new Date();
             const spending = {};
 
@@ -993,14 +1004,12 @@
                 const d = new Date(tx.timestamp);
                 const type = getCategoryType(tx.category);
 
-                // STRICTLY Expenses only for Budget Bars.
-                if (d.getMonth() === now.getMonth() && type === 'EXPENSE' && tx.amount < 0) {
+                // Only count EXPENSES in the current month
+                if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && type === 'EXPENSE' && tx.amount < 0) {
                     const cat = tx.category;
                     if (!spending[cat]) spending[cat] = 0;
 
-                    // --- CRITICAL FIX HERE ---
-                    // Convert foreign currency (e.g. 5000 MMK) to Base (e.g. 80 THB)
-                    // before adding it to the budget bar.
+                    // Convert to Base Currency (Fix for MMK/USD)
                     const rate = tx.fx_rate || 1;
                     const amountInBase = Math.abs(tx.amount) * rate;
 
@@ -1008,19 +1017,23 @@
                 }
             });
 
+            // Draw the bars
             Object.keys(limits).forEach(cat => {
                 const limit = limits[cat];
-                if (limit <= 0) return;
+                if (limit <= 0) return; // Skip if limit is 0
+
                 const spent = spending[cat] || 0;
                 const pct = Math.min((spent / limit) * 100, 100);
+
                 let color = 'fill-green';
-                if (spent > limit) color = 'fill-red'; else if (spent > limit * 0.8) color = 'fill-orange';
+                if (spent > limit) color = 'fill-red';
+                else if (spent > limit * 0.8) color = 'fill-orange';
 
                 listEl.innerHTML += `
                 <div class="budget-item">
                     <div class="budget-header">
                         <span>${cat}</span>
-                        <span>฿${spent.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} / ฿${limit.toLocaleString()}</span>
+                        <span>${Math.round(spent).toLocaleString()} / ${limit.toLocaleString()}</span>
                     </div>
                     <div class="budget-track"><div class="budget-fill ${color}" style="width:${pct}%"></div></div>
                 </div>`;
