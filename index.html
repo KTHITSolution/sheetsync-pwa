@@ -412,6 +412,30 @@
         .privacy-icon:hover {
             opacity: 1;
         }
+
+        /* --- Identity Modal --- */
+        .user-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn-user {
+            background: #f1f5f9;
+            border: 2px solid #e2e8f0;
+            padding: 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            color: #1e293b;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-user:active {
+            background: #cbd5e1;
+            transform: scale(0.98);
+        }
     </style>
 </head>
 
@@ -427,7 +451,19 @@
                 </div>
             </div>
         </div>
+        <div id="identity-modal"
+            style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:200; align-items:center; justify-content:center;">
+            <div
+                style="background:white; padding:30px; border-radius:16px; width:80%; max-width:320px; text-align:center;">
+                <h2 style="margin:0 0 10px 0;">Welcome</h2>
+                <p style="color:#64748b; margin-bottom:20px;">Who is using this device?</p>
 
+                <div class="user-grid">
+                    <button class="btn-user" onclick="setIdentity('KTH')">KTH</button>
+                    <button class="btn-user" onclick="setIdentity('Partner')">Partner</button>
+                </div>
+            </div>
+        </div>
         <header>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <div style="font-weight:bold; color:#1e293b;">Dashboard</div>
@@ -1049,6 +1085,29 @@
                 },
             });
         }
+        // --- IDENTITY MANAGEMENT ---
+        function checkIdentity() {
+            const stored = localStorage.getItem('sheetSyncUser');
+            if (!stored) {
+                document.getElementById('identity-modal').style.display = 'flex';
+            } else {
+                currentUser = stored;
+                document.getElementById('current-user-display').innerText = currentUser;
+                document.getElementById('identity-modal').style.display = 'none';
+            }
+        }
+
+        function setIdentity(name) {
+            localStorage.setItem('sheetSyncUser', name);
+            checkIdentity(); // Refresh state
+        }
+
+        function resetIdentity() {
+            if (confirm('Switch User? This will reload the app.')) {
+                localStorage.removeItem('sheetSyncUser');
+                location.reload();
+            }
+        }
 
         // Identity Logic
         function checkIdentity() {
@@ -1075,7 +1134,7 @@
                 if (pending.length > 0) {
                     updateStatus('Syncing...', 'syncing'); // <--- Orange
                     try {
-                        await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: 'APPEND_ROWS', data: pending }) });
+                        await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: 'APPEND_ROWS', user: currentUser, data: pending }) });
                         const tx = db.transaction(STORE_NAME, 'readwrite');
                         for (const item of pending) await tx.store.put({ ...item, synced: 1 });
                         await tx.done;
@@ -1094,7 +1153,7 @@
                         try {
                             const res = await fetch(SCRIPT_URL, {
                                 method: "POST",
-                                body: JSON.stringify({ action: job.type, data: job.payload })
+                                body: JSON.stringify({ action: job.type, user: currentUser, data: job.payload })
                             });
                             const json = await res.json();
 
