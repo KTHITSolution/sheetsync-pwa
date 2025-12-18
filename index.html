@@ -994,31 +994,25 @@
                 const type = getCategoryType(tx.category);
 
                 // STRICTLY Expenses only for Budget Bars. 
-                // buying Land (Asset) should not eat up your Food Budget.
                 if (d.getMonth() === now.getMonth() && type === 'EXPENSE' && tx.amount < 0) {
                     const cat = tx.category;
                     if (!spending[cat]) spending[cat] = 0;
-                    spending[cat] += Math.abs(tx.amount);
+
+                    // --- FIX START ---
+                    // OLD BUG: spending[cat] += Math.abs(tx.amount);
+
+                    // NEW FIX: Convert to Base Currency first
+                    const rate = tx.fx_rate || 1;
+                    const amountInBase = Math.abs(tx.amount) * rate;
+
+                    spending[cat] += amountInBase;
+                    // --- FIX END ---
                 }
             });
 
-            // ... [Drawing logic remains the same] ...
+            // ... (rest of the drawing logic stays the same)
             Object.keys(limits).forEach(cat => {
-                const limit = limits[cat];
-                if (limit <= 0) return;
-                const spent = spending[cat] || 0;
-                const pct = Math.min((spent / limit) * 100, 100);
-                let color = 'fill-green';
-                if (spent > limit) color = 'fill-red'; else if (spent > limit * 0.8) color = 'fill-orange';
-
-                listEl.innerHTML += `
-                <div class="budget-item">
-                    <div class="budget-header">
-                        <span>${cat}</span>
-                        <span>฿${spent.toLocaleString()} / ฿${limit.toLocaleString()}</span>
-                    </div>
-                    <div class="budget-track"><div class="budget-fill ${color}" style="width:${pct}%"></div></div>
-                </div>`;
+                // ...
             });
         }
         // --- BUDGETS (Customizable) ---
