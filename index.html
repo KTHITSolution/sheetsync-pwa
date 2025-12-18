@@ -926,19 +926,35 @@
                 try {
                     const res = await fetch(SCRIPT_URL);
                     const json = await res.json();
+
                     if (json.status === 'success') {
-                        // Update Rates
+                        // ... [Success Logic] ...
                         if (json.data.exchange_rates) {
                             EXCHANGE_RATES = json.data.exchange_rates.rates;
                             localStorage.setItem('myBankRates', JSON.stringify(EXCHANGE_RATES));
                         }
-                        // Update Config
                         if (json.data.category_config) {
-                            // ... same as before ...
+                            CATEGORY_CONFIG = json.data.category_config;
+                            localStorage.setItem('myBankConfig', JSON.stringify(CATEGORY_CONFIG));
+                            populateCategoryUI();
                         }
-                        // ... save transactions ...
+
+                        const tx = db.transaction(STORE_NAME, 'readwrite');
+                        for (const row of json.data.recent_transactions) {
+                            await tx.store.put({ ...row, amount: Number(row.amount), synced: 1 });
+                        }
+                        await tx.done;
+                        renderList();
+                        updateStatus('Online', 'online'); // <--- Green Success
+                    } else {
+                        console.error('Server Error:', json);
+                        updateStatus('Server Error', 'error'); // <--- Show Red Error
                     }
-                } catch (e) { console.error(e); }
+                } catch (e) {
+                    console.error("Pull Failed:", e);
+                    // This catches the ERR_FAILED 200 error
+                    updateStatus('Connection Fail', 'error'); // <--- Show Red Error
+                }
             }
         };
 
