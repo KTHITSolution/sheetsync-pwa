@@ -372,6 +372,46 @@
             color: white;
             border-color: #2563eb;
         }
+
+        /* --- Dashboard & Privacy --- */
+        .balance-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .balance-card {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .balance-card .label {
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .balance-card .amount {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .privacy-icon {
+            font-size: 1.2rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .privacy-icon:hover {
+            opacity: 1;
+        }
     </style>
 </head>
 
@@ -389,9 +429,24 @@
         </div>
 
         <header>
-            <div class="balance-label">Current Balance</div>
-            <div class="balance-amount pos" id="total-balance">฿0.00</div>
-            <div style="margin-top: 10px; font-size: 0.8rem; color: #6b7280; cursor: pointer;"
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <div style="font-weight:bold; color:#1e293b;">Dashboard</div>
+                <span class="privacy-icon" onclick="togglePrivacy()" id="privacy-btn">👁️</span>
+            </div>
+
+            <div class="balance-grid">
+                <div class="balance-card">
+                    <div class="label">Available Balance</div>
+                    <div class="amount" id="val-liquid">...</div>
+                </div>
+
+                <div class="balance-card">
+                    <div class="label">Total Savings</div>
+                    <div class="amount" id="val-assets">...</div>
+                </div>
+            </div>
+
+            <div style="margin-top: 15px; font-size: 0.8rem; color: #6b7280; cursor: pointer;"
                 onclick="resetIdentity()">
                 👤 <span id="current-user-display">Unknown</span> (Tap to switch)
             </div>
@@ -514,6 +569,9 @@
         let showAllCashflow = false;
         let currentCurrency = 'THB'; // Default
 
+        // Privacy State (Load from memory)
+        let isPrivacyHidden = localStorage.getItem('myBankPrivacy') === 'true';
+
         // Default Rates (Fallback)
         let EXCHANGE_RATES = { "THB": 1, "USD": 32, "MMK": 0.008 };
 
@@ -560,6 +618,16 @@
             });
             // Optional: Update placeholder to show symbol
             document.getElementById('inp-amount').placeholder = `Amount (${curr})`;
+        }
+        function togglePrivacy() {
+            isPrivacyHidden = !isPrivacyHidden;
+            localStorage.setItem('myBankPrivacy', isPrivacyHidden);
+
+            // Update Icon UI
+            document.getElementById('privacy-btn').innerText = isPrivacyHidden ? '🙈' : '👁️';
+
+            // Refresh the numbers
+            renderList();
         }
         // --- FORM LOGIC ---
         // --- DYNAMIC FORM UI ---
@@ -651,33 +719,45 @@
             const listEl = document.getElementById('tx-list');
             listEl.innerHTML = '';
 
-            let totalBase = 0; // Total in THB
+            // --- CALCULATION VARIABLES ---
+            let totalLiquid = 0; // Cash on hand (Income - Expense - Assets Bought)
+            let totalAssets = 0; // Accumulated Wealth (Gold, Land, etc.)
 
             txs.reverse().forEach(tx => {
                 // 1. Math: Convert to Base (THB)
-                // If old transaction has no rate, assume 1 (THB)
                 const rate = tx.fx_rate || 1;
                 const amountBase = tx.amount * rate;
-                totalBase += amountBase;
 
-                // 2. Display: Original Currency
+                // 2. Identify Type
+                const type = getCategoryType(tx.category);
+
+                // LOGIC:
+                // Liquid Balance = Sum of EVERYTHING (Income adds, Expense/AssetBuys subtracts)
+                totalLiquid += amountBase;
+
+                // Asset Value = Sum of POSITIVE value of Assets purchased
+                // (Asset buys are stored as negative "Expenses", so we take absolute value)
+                if (type === 'ASSET') {
+                    totalAssets += Math.abs(amountBase);
+                }
+
+                // --- LIST RENDERING (Same as before) ---
                 const li = document.createElement('li');
                 li.className = 'tx-item';
                 const isSynced = tx.synced === 1;
                 const icon = isSynced ? '✓' : '🕒';
 
-                // Symbol Logic
                 let symbol = '฿';
                 if (tx.currency === 'USD') symbol = '$';
                 if (tx.currency === 'MMK') symbol = 'Ks';
 
-                // Color Logic (Same as Phase 4)
                 let color = tx.amount > 0 ? 'green' : 'red';
                 if (tx.category === 'Loans') {
                     if (tx.sub_category === 'Loan Received') color = '#16a34a';
                     if (tx.sub_category === 'Loan Repayment') color = '#dc2626';
                 }
 
+                // Apply Privacy to List Items too? (Optional, currently NOT applied to list, only headers)
                 li.innerHTML = `
                 <div class="tx-left" onclick="openEditModal('${tx.uuid}')">
                     <span class="tx-cat">${tx.category}</span>
@@ -693,8 +773,25 @@
                 listEl.appendChild(li);
             });
 
-            // Display Total in Base Currency (THB)
-            document.getElementById('total-balance').innerText = `฿${totalBase.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            // --- UPDATE DASHBOARD ---
+            const liquidEl = document.getElementById('val-liquid');
+            const assetEl = document.getElementById('val-assets');
+            const privacyBtn = document.getElementById('privacy-btn');
+
+            // Set Icon State
+            privacyBtn.innerText = isPrivacyHidden ? '🙈' : '👁️';
+
+            if (isPrivacyHidden) {
+                liquidEl.innerText = '****';
+                assetEl.innerText = '****';
+                liquidEl.style.color = '#0f172a'; // Reset color
+            } else {
+                liquidEl.innerText = `฿${totalLiquid.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                assetEl.innerText = `฿${totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+
+                // Color logic for Liquid Balance
+                liquidEl.style.color = totalLiquid >= 0 ? '#16a34a' : '#dc2626';
+            }
 
             renderChart(txs);
             renderBudgets(txs);
