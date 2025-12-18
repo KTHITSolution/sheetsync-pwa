@@ -719,29 +719,30 @@
             const listEl = document.getElementById('tx-list');
             listEl.innerHTML = '';
 
-            // --- CALCULATION VARIABLES ---
-            let totalLiquid = 0; // Cash on hand (Income - Expense - Assets Bought)
-            let totalAssets = 0; // Accumulated Wealth (Gold, Land, etc.)
+            // --- CALCULATION LOGIC ---
+            let totalLiquid = 0; // Cash available to spend
+            let totalAssets = 0; // Accumulated Wealth (Savings, Gold, etc.)
 
             txs.reverse().forEach(tx => {
-                // 1. Math: Convert to Base (THB)
+                // 1. Convert everything to Base Currency (THB) for the dashboard
                 const rate = tx.fx_rate || 1;
                 const amountBase = tx.amount * rate;
 
-                // 2. Identify Type
+                // 2. Identify Type (Asset vs Expense)
                 const type = getCategoryType(tx.category);
 
-                // LOGIC:
-                // Liquid Balance = Sum of EVERYTHING (Income adds, Expense/AssetBuys subtracts)
+                // 3. MATH:
+                // totalLiquid: Sum of ALL transactions. 
+                // Since Asset purchases are negative (e.g. -1000), adding them AUTOMATICALLY subtracts them from Liquid.
                 totalLiquid += amountBase;
 
-                // Asset Value = Sum of POSITIVE value of Assets purchased
-                // (Asset buys are stored as negative "Expenses", so we take absolute value)
+                // totalAssets: Sum of POSITIVE value of Asset transactions.
+                // If we bought Savings (-1000), we add +1000 to our Asset pile.
                 if (type === 'ASSET') {
                     totalAssets += Math.abs(amountBase);
                 }
 
-                // --- LIST RENDERING (Same as before) ---
+                // --- LIST RENDERING (Standard) ---
                 const li = document.createElement('li');
                 li.className = 'tx-item';
                 const isSynced = tx.synced === 1;
@@ -757,7 +758,6 @@
                     if (tx.sub_category === 'Loan Repayment') color = '#dc2626';
                 }
 
-                // Apply Privacy to List Items too? (Optional, currently NOT applied to list, only headers)
                 li.innerHTML = `
                 <div class="tx-left" onclick="openEditModal('${tx.uuid}')">
                     <span class="tx-cat">${tx.category}</span>
@@ -773,23 +773,22 @@
                 listEl.appendChild(li);
             });
 
-            // --- UPDATE DASHBOARD ---
+            // --- UPDATE DASHBOARD (With Privacy) ---
             const liquidEl = document.getElementById('val-liquid');
             const assetEl = document.getElementById('val-assets');
             const privacyBtn = document.getElementById('privacy-btn');
 
-            // Set Icon State
-            privacyBtn.innerText = isPrivacyHidden ? '🙈' : '👁️';
+            if (privacyBtn) privacyBtn.innerText = isPrivacyHidden ? '🙈' : '👁️';
 
             if (isPrivacyHidden) {
                 liquidEl.innerText = '****';
                 assetEl.innerText = '****';
-                liquidEl.style.color = '#0f172a'; // Reset color
+                liquidEl.style.color = '#0f172a';
             } else {
                 liquidEl.innerText = `฿${totalLiquid.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
                 assetEl.innerText = `฿${totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
-                // Color logic for Liquid Balance
+                // Visual Cue: Green if positive, Red if negative
                 liquidEl.style.color = totalLiquid >= 0 ? '#16a34a' : '#dc2626';
             }
 
