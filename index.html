@@ -866,24 +866,34 @@
                 if (tx.amount >= 0 && type !== 'LIABILITY') return; // Skip Income
                 if (!showAllCashflow && (type === 'ASSET' || type === 'LIABILITY')) return;
 
-                // 2. Build Hierarchy
+                // 2. CURRENCY CONVERSION FIX
+                // Use the rate saved with the transaction, or fallback to current rates
+                let rate = tx.fx_rate;
+                if (!rate || rate === 0) {
+                    rate = EXCHANGE_RATES[tx.currency] || 1;
+                }
+
+                // Calculate "Normalized Amount" (Value in THB)
+                // Example: 50,000 MMK * 0.008 = 400 THB
+                const amtBase = Math.abs(tx.amount) * rate;
+
+                // 3. Build Hierarchy using Normalized Amount
                 const main = tx.category;
                 const sub = tx.sub_category;
-                const amt = Math.abs(tx.amount);
                 const note = tx.note || 'No Description';
 
                 // Init Main Category
                 if (!hierarchy[main]) hierarchy[main] = { total: 0, subs: {}, topNotes: [] };
-                hierarchy[main].total += amt;
-                hierarchy[main].topNotes.push({ t: note, a: amt });
+                hierarchy[main].total += amtBase;
+                hierarchy[main].topNotes.push({ t: note, a: amtBase });
 
                 // Init Sub Category
                 if (!hierarchy[main].subs[sub]) hierarchy[main].subs[sub] = { total: 0, topNotes: [] };
-                hierarchy[main].subs[sub].total += amt;
-                hierarchy[main].subs[sub].topNotes.push({ t: note, a: amt });
+                hierarchy[main].subs[sub].total += amtBase;
+                hierarchy[main].subs[sub].topNotes.push({ t: note, a: amtBase });
             });
 
-            // 3. Sort Notes (Top 3 highest spenders)
+            // 4. Sort Notes (Top 3 highest spenders)
             const sortNotes = (arr) => arr.sort((a, b) => b.a - a.a).slice(0, 3);
 
             Object.values(hierarchy).forEach(main => {
@@ -961,6 +971,7 @@
                                     let value = context.raw || 0;
                                     return `${label}: ฿${value.toLocaleString()}`;
                                 },
+                                // Inside renderChart -> options -> plugins -> tooltip -> callbacks
                                 afterBody: function (context) {
                                     const index = context[0].dataIndex;
                                     const label = context[0].label;
@@ -968,10 +979,10 @@
 
                                     if (!notes || notes.length === 0) return [];
 
-                                    // Build "Smart Tooltip" lines
-                                    let lines = [' ', '--- Top Spenders ---'];
+                                    let lines = [' ', '--- Top Spenders (THB) ---'];
                                     notes.forEach(n => {
-                                        lines.push(`• ${n.t} (฿${n.a.toLocaleString()})`);
+                                        // Use 'amtBase' which we stored as 'n.a'
+                                        lines.push(`• ${n.t} (฿${n.a.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })})`);
                                     });
                                     return lines;
                                 }
