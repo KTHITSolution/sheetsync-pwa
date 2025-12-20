@@ -630,13 +630,13 @@
             "Loans": { "type": "LIABILITY", "subs": ["Loan Received", "Loan Repayment", "Loan Interest"] },
             "Income": { "type": "INCOME", "subs": ["Salary", "Bonus", "Other"] },
             // --- NEW ICT BUSINESS CATEGORIES ---
-            "Store Inventory": { 
-                "type": "ASSET", 
-                "subs": ["Computers", "Peripherals", "Printers & Office", "Networking & Parts"] 
+            "Store Inventory": {
+                "type": "ASSET",
+                "subs": ["Computers", "Peripherals", "Printers & Office", "Networking & Parts"]
             },
-            "Business Sales": { 
-                "type": "INCOME", 
-                "subs": ["Project Payment", "Consulting Fee", "Product Sale"] 
+            "Business Sales": {
+                "type": "INCOME",
+                "subs": ["Project Payment", "Consulting Fee", "Product Sale"]
             }
         };
 
@@ -648,8 +648,6 @@
             "Assets & Savings": 100000,
             "Store Inventory": 200000, // High limit for business stock
             "Loans": 0,
-            "Income": 0,
-            "Business Sales": 0
         };
 
         // --- INIT ---
@@ -1026,12 +1024,16 @@
                 const d = new Date(tx.timestamp);
                 const type = getCategoryType(tx.category);
 
-                // Only count EXPENSES in the current month
-                if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && type === 'EXPENSE' && tx.amount < 0) {
+                // FIX: Allow both EXPENSE and ASSET types to be tracked in budgets
+                // Buying Inventory (Asset) reduces your cash, so you should budget for it!
+                if (d.getMonth() === now.getMonth() &&
+                    d.getFullYear() === now.getFullYear() &&
+                    (type === 'EXPENSE' || type === 'ASSET') && // <--- CHANGED THIS LINE
+                    tx.amount < 0) {
+
                     const cat = tx.category;
                     if (!spending[cat]) spending[cat] = 0;
 
-                    // Convert to Base Currency (Fix for MMK/USD)
                     const rate = tx.fx_rate || 1;
                     const amountInBase = Math.abs(tx.amount) * rate;
 
