@@ -628,17 +628,28 @@
             "Agriculture": { "type": "EXPENSE", "subs": ["Agri Inputs", "Tools", "Labor"] },
             "Assets & Savings": { "type": "ASSET", "subs": ["Gold", "Stocks", "Land", "Building", "Savings"] },
             "Loans": { "type": "LIABILITY", "subs": ["Loan Received", "Loan Repayment", "Loan Interest"] },
-            "Income": { "type": "INCOME", "subs": ["Salary", "Bonus", "Other"] }
+            "Income": { "type": "INCOME", "subs": ["Salary", "Bonus", "Other"] },
+            // --- NEW ICT BUSINESS CATEGORIES ---
+            "Store Inventory": { 
+                "type": "ASSET", 
+                "subs": ["Computers", "Peripherals", "Printers & Office", "Networking & Parts"] 
+            },
+            "Business Sales": { 
+                "type": "INCOME", 
+                "subs": ["Project Payment", "Consulting Fee", "Product Sale"] 
+            }
         };
 
-        // --- BUDGET DEFAULTS (Matches New Categories) ---
+        // --- BUDGET DEFAULTS (Add new categories to prevent errors) ---
         const DEFAULT_LIMITS = {
-            "Daily Living": 5000,
-            "Lifestyle": 2000,
+            "Daily Living": 10000,
+            "Lifestyle": 20000,
             "Agriculture": 5000,
-            "Assets & Savings": 10000,
+            "Assets & Savings": 100000,
+            "Store Inventory": 200000, // High limit for business stock
             "Loans": 0,
-            "Income": 0
+            "Income": 0,
+            "Business Sales": 0
         };
 
         // --- INIT ---
