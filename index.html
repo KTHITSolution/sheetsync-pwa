@@ -480,6 +480,11 @@
                     <div class="label">Total Savings</div>
                     <div class="amount" id="val-assets">...</div>
                 </div>
+
+                <div class="balance-card" style="grid-column: span 2;">
+                    <div class="label">Store Inventory Value</div>
+                    <div class="amount" id="val-stock" style="color:#3b82f6;">...</div>
+                </div>
             </div>
 
             <div style="margin-top: 15px; font-size: 0.8rem; color: #6b7280; cursor: pointer;"
@@ -774,26 +779,34 @@
             listEl.innerHTML = '';
 
             // --- CALCULATION LOGIC ---
-            let totalLiquid = 0; // Cash available to spend
-            let totalAssets = 0; // Accumulated Wealth (Savings, Gold, etc.)
+            let totalLiquid = 0; // Cash on hand (Income - Expense - Assets Bought)
+            let totalSavings = 0; // Liquid Wealth (Gold, Savings)
+            let totalStock = 0;   // Illiquid Business Assets (Inventory)
 
             txs.reverse().forEach(tx => {
-                // 1. Convert everything to Base Currency (THB) for the dashboard
+                // 1. Convert to Base Currency (THB)
                 const rate = tx.fx_rate || 1;
                 const amountBase = tx.amount * rate;
 
-                // 2. Identify Type (Asset vs Expense)
+                // 2. Identify Type
                 const type = getCategoryType(tx.category);
 
                 // 3. MATH:
-                // totalLiquid: Sum of ALL transactions. 
-                // Since Asset purchases are negative (e.g. -1000), adding them AUTOMATICALLY subtracts them from Liquid.
+                // Liquid Balance: Always impacted by money leaving the wallet
                 totalLiquid += amountBase;
 
-                // totalAssets: Sum of POSITIVE value of Asset transactions.
-                // If we bought Savings (-1000), we add +1000 to our Asset pile.
+                // Asset Separation Logic
                 if (type === 'ASSET') {
-                    totalAssets += Math.abs(amountBase);
+                    const val = Math.abs(amountBase);
+
+                    // IF it is Inventory, add to Stock bucket
+                    if (tx.category === 'Store Inventory') {
+                        totalStock += val;
+                    }
+                    // ELSE add to Liquid Savings bucket
+                    else {
+                        totalSavings += val;
+                    }
                 }
 
                 // --- LIST RENDERING (Standard) ---
@@ -827,9 +840,10 @@
                 listEl.appendChild(li);
             });
 
-            // --- UPDATE DASHBOARD (With Privacy) ---
+            // --- UPDATE DASHBOARD (With Privacy & Separation) ---
             const liquidEl = document.getElementById('val-liquid');
             const assetEl = document.getElementById('val-assets');
+            const stockEl = document.getElementById('val-stock'); // New Element
             const privacyBtn = document.getElementById('privacy-btn');
 
             if (privacyBtn) privacyBtn.innerText = isPrivacyHidden ? '🙈' : '👁️';
@@ -837,15 +851,17 @@
             if (isPrivacyHidden) {
                 liquidEl.innerText = '****';
                 assetEl.innerText = '****';
+                stockEl.innerText = '****';
                 liquidEl.style.color = '#0f172a';
             } else {
                 liquidEl.innerText = `฿${totalLiquid.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-                assetEl.innerText = `฿${totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                assetEl.innerText = `฿${totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                stockEl.innerText = `฿${totalStock.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
-                // Visual Cue: Green if positive, Red if negative
+                // Color Logic
                 liquidEl.style.color = totalLiquid >= 0 ? '#16a34a' : '#dc2626';
             }
-            cachedTransactions = txs; // <--- SAVE THIS
+
             renderChart(txs);
             renderBudgets(txs);
         }
