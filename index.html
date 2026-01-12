@@ -1103,6 +1103,24 @@
             return stored ? JSON.parse(stored) : DEFAULT_LIMITS;
         }
 
+        // run on startup and once per day
+        function checkMonthlyBudgetReset() {
+            const now = new Date();
+            const monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`; // e.g. "2026-1"
+            const last = localStorage.getItem('myBankBudgetsLastReset');
+            if (last !== monthKey) {
+                // clear any stored monthly progress (if you store it)
+                localStorage.removeItem('myBankBudgetsProgress');
+                localStorage.setItem('myBankBudgetsLastReset', monthKey);
+                renderList(); // refresh UI
+            }
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            checkMonthlyBudgetReset();
+            // check again once a day (86400000 ms)
+            setInterval(checkMonthlyBudgetReset, 24 * 60 * 60 * 1000);
+        });
+
         // --- SETTINGS MODAL ---
         function openBudgetSettings() {
             const limits = getBudgetLimits();

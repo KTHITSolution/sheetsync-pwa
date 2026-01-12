@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mybank-v38'; // <--- ALWAYS bump this version when you update code!
+const CACHE_NAME = 'mybank-v39'; // <--- ALWAYS bump this version when you update code!
 const ASSETS = [
   './',
   './index.html',
