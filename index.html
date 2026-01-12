@@ -774,7 +774,12 @@
         }
 
         async function renderList() {
-            const txs = await db.getAllFromIndex(STORE_NAME, 'timestamp');
+            const allTxs = await db.getAllFromIndex(STORE_NAME, 'timestamp');
+            // If a user is selected, show only their transactions.
+            let txs = allTxs;
+            if (currentUser) txs = allTxs.filter(t => t.user_tag === currentUser);
+            // Cache transactions for chart drill-downs
+            cachedTransactions = txs.slice();
             const listEl = document.getElementById('tx-list');
             listEl.innerHTML = '';
 
@@ -1157,7 +1162,10 @@
 
         function setIdentity(name) {
             localStorage.setItem('sheetSyncUser', name);
-            checkIdentity(); // Refresh state
+            currentUser = name;
+            document.getElementById('current-user-display').innerText = currentUser;
+            document.getElementById('identity-modal').style.display = 'none';
+            renderList();
         }
 
         function resetIdentity() {
@@ -1176,7 +1184,7 @@
                 document.getElementById('current-user-display').innerText = currentUser;
             }
         }
-        function setIdentity(u) { localStorage.setItem('sheetSyncUser', u); currentUser = u; document.getElementById('identity-modal').style.display = 'none'; checkIdentity(); }
+        function setIdentity(u) { localStorage.setItem('sheetSyncUser', u); currentUser = u; document.getElementById('current-user-display').innerText = currentUser; document.getElementById('identity-modal').style.display = 'none'; renderList(); }
         function resetIdentity() { if (confirm('Switch user?')) { localStorage.removeItem('sheetSyncUser'); location.reload(); } }
 
         const syncManager = {
