@@ -599,9 +599,11 @@
         <div class="list-header" style="align-items:center;">
             <span>Recent Transactions</span>
             <div style="display:flex; align-items:center; gap:8px;">
-                <select id="month-filter" onchange="renderList()" style="padding:6px 8px; border-radius:8px; border:1px solid #e5e7eb; background:white; font-size:0.9rem;">
+                <button id="month-prev" onclick="prevMonth()" title="Previous month" style="background:white; border:1px solid #e5e7eb; padding:6px 8px; border-radius:8px; cursor:pointer;">◀</button>
+                <select id="month-filter" onchange="onMonthChange()" style="padding:6px 8px; border-radius:8px; border:1px solid #e5e7eb; background:white; font-size:0.9rem;">
                     <option value="all">All</option>
                 </select>
+                <button id="month-next" onclick="nextMonth()" title="Next month" style="background:white; border:1px solid #e5e7eb; padding:6px 8px; border-radius:8px; cursor:pointer;">▶</button>
                 <span id="sync-status" class="status-indicator">● Connecting...</span>
             </div>
         </div>
@@ -789,33 +791,26 @@
 
             // --- MONTH FILTER SETUP ---
             const monthFilterEl = document.getElementById('month-filter');
+            let monthKeys = [];
             if (monthFilterEl) {
-                const prev = monthFilterEl.value || 'all';
-                // Build unique month keys (YYYY-MM) from all transactions
-                const monthsMap = {};
-                allTxs.forEach(t => {
-                    if (!t.timestamp) return;
-                    const d = new Date(t.timestamp);
-                    if (isNaN(d)) return;
-                    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}`;
-                    monthsMap[key] = true;
-                });
-                // Sort descending (newest first)
-                const monthKeys = Object.keys(monthsMap).sort((a, b) => b.localeCompare(a));
-
-                // Rebuild options preserving previous selection when possible
-                monthFilterEl.innerHTML = '<option value="all">All</option>' + monthKeys.map(k => {
-                    const [y, m] = k.split('-');
-                    const date = new Date(Number(y), Number(m) - 1, 1);
-                    const label = date.toLocaleString(undefined, { month: 'short' }) + ' ' + y;
-                    return `<option value="${k}">${label}</option>`;
-                }).join('');
-                if (prev && Array.from(monthFilterEl.options).some(o => o.value === prev)) monthFilterEl.value = prev;
+                const saved = localStorage.getItem('myBankMonthFilter');
+                monthKeys = populateMonthFilter(allTxs, saved);
             }
 
             // If a user is selected, filter by user first
             let txs = allTxs;
             if (currentUser) txs = allTxs.filter(t => t.user_tag === currentUser);
+
+            // Apply month filter (if not 'all')
+            if (monthFilterEl && monthFilterEl.value && monthFilterEl.value !== 'all') {
+                const [y, m] = monthFilterEl.value.split('-');
+                txs = txs.filter(t => {
+                    if (!t.timestamp) return false;
+                    const d = new Date(t.timestamp);
+                    if (isNaN(d)) return false;
+                    return d.getFullYear() === Number(y) && (d.getMonth() + 1) === Number(m);
+                });
+            }
 
             // Apply month filter (if not 'all')
             if (monthFilterEl && monthFilterEl.value && monthFilterEl.value !== 'all') {
@@ -943,6 +938,87 @@
             chartLevel = 'main';
             chartDrillTarget = null;
             renderChart(cachedTransactions);
+        }
+
+        // --- MONTH FILTER HELPERS ---
+        function populateMonthFilter(allTxs, savedValue = null) {
+            const monthFilterEl = document.getElementById('month-filter');
+            if (!monthFilterEl) return [];
+
+            const prev = savedValue || monthFilterEl.value || 'all';
+            const monthsMap = {};
+            allTxs.forEach(t => {
+                if (!t.timestamp) return;
+                const d = new Date(t.timestamp);
+                if (isNaN(d)) return;
+                const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}`;
+                monthsMap[key] = true;
+            });
+
+            const monthKeys = Object.keys(monthsMap).sort((a, b) => b.localeCompare(a));
+            monthFilterEl.innerHTML = '<option value="all">All</option>' + monthKeys.map(k => {
+                const [y, m] = k.split('-');
+                const date = new Date(Number(y), Number(m) - 1, 1);
+                const label = date.toLocaleString(undefined, { month: 'short' }) + ' ' + y;
+                return `<option value="${k}">${label}</option>`;
+            }).join('');
+
+            if (prev && Array.from(monthFilterEl.options).some(o => o.value === prev)) monthFilterEl.value = prev;
+            else monthFilterEl.value = 'all';
+
+            return monthKeys;
+        }
+
+        function onMonthChange() {
+            const el = document.getElementById('month-filter');
+            if (!el) return;
+            localStorage.setItem('myBankMonthFilter', el.value);
+            renderList();
+        }
+
+        function getMonthKeysFromSelect() {
+            const el = document.getElementById('month-filter');
+            if (!el) return [];
+            return Array.from(el.options).map(o => o.value).filter(v => v !== 'all');
+        }
+
+        function prevMonth() {
+            const keys = getMonthKeysFromSelect();
+            if (!keys || keys.length === 0) return;
+            const el = document.getElementById('month-filter');
+            if (!el) return;
+            const cur = el.value;
+            if (cur === 'all') {
+                // Go to oldest month
+                el.value = keys[keys.length - 1];
+            } else {
+                const idx = keys.indexOf(cur);
+                if (idx === -1) el.value = keys[0];
+                else if (idx < keys.length - 1) el.value = keys[idx + 1];
+                // else stay at oldest
+            }
+            onMonthChange();
+        }
+
+        function nextMonth() {
+            const keys = getMonthKeysFromSelect();
+            if (!keys || keys.length === 0) return;
+            const el = document.getElementById('month-filter');
+            if (!el) return;
+            const cur = el.value;
+            if (cur === 'all') {
+                // Go to most recent month
+                el.value = keys[0];
+            } else {
+                const idx = keys.indexOf(cur);
+                if (idx === -1) el.value = keys[0];
+                else if (idx > 0) el.value = keys[idx - 1];
+                else {
+                    // already at most recent -> go back to 'All'
+                    el.value = 'all';
+                }
+            }
+            onMonthChange();
         }
 
         function processChartData(transactions) {
