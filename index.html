@@ -808,7 +808,14 @@
                     if (tx.category === 'Store Inventory') {
                         totalStock += val;
                     }
-                    // ELSE add to Liquid Savings bucket
+                    // For 'Assets & Savings', only the 'Savings' sub-category counts as Total Savings
+                    else if (tx.category === 'Assets & Savings') {
+                        if (tx.sub_category === 'Savings') {
+                            totalSavings += val;
+                        }
+                        // otherwise ignore other asset types (Gold/Stocks/Land) from Total Savings
+                    }
+                    // Fallback: any other ASSET categories are treated as savings
                     else {
                         totalSavings += val;
                     }
