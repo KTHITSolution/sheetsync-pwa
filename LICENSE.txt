@@ -1,0 +1,37 @@
+MY BANK - DIGITAL PRODUCT LICENSE
+Copyright (c) 2026 [KTH IT Solution]
+
+-------------------------------------------------------------------------
+TERMS OF USE (END USER LICENSE AGREEMENT)
+-------------------------------------------------------------------------
+
+By downloading or using this digital product ("My Bank Source Code"), 
+you agree to the following terms:
+
+1. GRANT OF LICENSE
+   You are granted a non-exclusive, non-transferable license to use this 
+   source code for:
+   - Personal financial management.
+   - Usage within your own business or organization.
+   - Modification and customization for your own private use.
+
+2. RESTRICTIONS (NO RESALE)
+   You may NOT:
+   - Resell, redistribute, or sublicense this source code in part or in whole.
+   - Offer this product as a downloadable template on any marketplace 
+     (e.g., Etsy, Gumroad, CodeCanyon, GitHub).
+   - Publicly host the source code in a way that allows others to download 
+     it for free (e.g., a public GitHub repository).
+
+3. MODIFICATIONS
+   You are free to modify the code to suit your needs. However, the modified 
+   code is still subject to the distribution restrictions listed above.
+
+4. DISCLAIMER
+   This software is provided "AS IS", without warranty of any kind. 
+   The author is not liable for any damages or data loss arising from the 
+   use of this software.
+
+-------------------------------------------------------------------------
+Thank you for supporting independent creators!
+-------------------------------------------------------------------------

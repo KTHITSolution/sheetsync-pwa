@@ -6,11 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2563eb">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2344/2344132.png">
+
+    <link rel="apple-touch-icon" href="./assets/icon-192.png">
+    <link rel="icon" type="image/png" href="./assets/icon-192.png" />
+
     <title>My Bank</title>
-    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2344/2344132.png">
-    <script src="https://cdn.jsdelivr.net/npm/idb@7/build/umd.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script src="./idb.js"></script>
+    <script src="./chart.js"></script>
+    <script src="config.js"></script>
+
     <style>
         :root {
             --bg-color: #f4f6f8;
@@ -93,7 +98,6 @@
             background-color: var(--danger);
         }
 
-        /* Form Styles */
         #input-panel {
             background: var(--card-bg);
             padding: 20px;
@@ -135,7 +139,6 @@
             width: auto;
         }
 
-        /* List & Budget Styles */
         .list-header {
             padding: 0 20px;
             font-weight: 600;
@@ -212,16 +215,16 @@
             background: #dc2626;
         }
 
-        /* Modal */
-        #identity-modal,
-        #budget-settings-modal {
+        #profile-settings-modal,
+        #budget-settings-modal,
+        #edit-modal {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.8);
-            z-index: 100;
+            z-index: 200;
             display: none;
             align-items: center;
             justify-content: center;
@@ -233,16 +236,10 @@
             padding: 30px;
             border-radius: 16px;
             text-align: center;
-            width: 80%;
-            max-width: 300px;
+            width: 85%;
+            max-width: 320px;
             max-height: 80vh;
             overflow-y: auto;
-        }
-
-        .user-grid {
-            display: grid;
-            gap: 10px;
-            margin-top: 20px;
         }
 
         @keyframes slideDown {
@@ -257,7 +254,6 @@
             }
         }
 
-        /* --- Status Indicators --- */
         .status-indicator {
             font-size: 0.8rem;
             font-weight: 600;
@@ -270,23 +266,18 @@
             color: #16a34a;
         }
 
-        /* Green */
         .status-syncing {
             color: #f59e0b;
             animation: pulse 1.5s infinite;
         }
 
-        /* Orange + Pulse */
         .status-offline {
             color: #6b7280;
         }
 
-        /* Gray */
         .status-error {
             color: #dc2626;
         }
-
-        /* Red */
 
         @keyframes pulse {
             0% {
@@ -302,7 +293,6 @@
             }
         }
 
-        /* Toggle Switch */
         .switch {
             position: relative;
             display: inline-block;
@@ -348,7 +338,6 @@
             transform: translateX(14px);
         }
 
-        /* Currency Toggles */
         .currency-group {
             display: flex;
             gap: 10px;
@@ -373,7 +362,6 @@
             border-color: #2563eb;
         }
 
-        /* --- Dashboard & Privacy --- */
         .balance-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -412,84 +400,90 @@
         .privacy-icon:hover {
             opacity: 1;
         }
-
-        /* --- Identity Modal --- */
-        .user-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .btn-user {
-            background: #f1f5f9;
-            border: 2px solid #e2e8f0;
-            padding: 20px;
-            border-radius: 12px;
-            font-weight: 600;
-            color: #1e293b;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .btn-user:active {
-            background: #cbd5e1;
-            transform: scale(0.98);
-        }
     </style>
 </head>
 
 <body>
+    <div id="login-overlay"
+        style="position:fixed; top:0; left:0; width:100%; height:100%; background:#2563eb; z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white;">
+        <img src="./assets/icon-192.png"
+            style="width:80px; margin-bottom:20px; border-radius:15px; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
+        <h2 style="margin:0 0 20px 0;">My Bank</h2>
+        <input type="password" id="login-pass" placeholder="Enter App Password"
+            style="padding:15px; border-radius:10px; border:none; width:80%; max-width:250px; text-align:center; font-size:1.2rem; color:#333;">
+        <button id="login-btn" onclick="attemptLogin()"
+            style="margin-top:20px; padding:12px 30px; background:white; color:#2563eb; border:none; border-radius:30px; font-weight:bold; font-size:1rem; cursor:pointer;">Unlock</button>
+        <p id="login-msg" style="margin-top:20px; font-size:0.9rem; opacity:0.8;"></p>
+    </div>
 
     <div id="app">
-        <div id="identity-modal">
-            <div class="modal-content">
-                <h3>Who are you?</h3>
-                <div class="user-grid">
-                    <button class="btn btn-save" onclick="setIdentity('KTH')">KTH</button>
-                    <button class="btn btn-save" onclick="setIdentity('TST')">TST</button>
-                </div>
-            </div>
-        </div>
-        <div id="identity-modal"
-            style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:200; align-items:center; justify-content:center;">
-            <div
-                style="background:white; padding:30px; border-radius:16px; width:80%; max-width:320px; text-align:center;">
-                <h2 style="margin:0 0 10px 0;">Welcome</h2>
-                <p style="color:#64748b; margin-bottom:20px;">Who is using this device?</p>
 
-                <div class="user-grid">
-                    <button class="btn-user" onclick="setIdentity('KTH')">KTH</button>
-                    <button class="btn-user" onclick="setIdentity('Partner')">Partner</button>
+        <div id="profile-settings-modal">
+            <div class="settings-content">
+                <h2 style="margin:0 0 15px 0; color:#1e293b;">Profile & Settings</h2>
+
+                <div style="text-align:left; margin-bottom:15px;">
+                    <label
+                        style="display:block; font-size:0.8rem; font-weight:bold; color:#64748b; margin-bottom:5px;">Select
+                        Account Slot</label>
+                    <select id="setting-account-id"
+                        style="width:100%; padding:10px; border:1px solid #e5e7eb; border-radius:8px; margin-bottom:10px;">
+                        <option value="account_1">Account 1 (Primary)</option>
+                        <option value="account_2">Account 2 (Partner)</option>
+                        <option value="shared">Shared Expenses</option>
+                    </select>
+
+                    <label
+                        style="display:block; font-size:0.8rem; font-weight:bold; color:#64748b; margin-bottom:5px;">Display
+                        Name (Change anytime)</label>
+                    <input type="text" id="setting-user-name" placeholder="e.g. John"
+                        style="width:100%; padding:10px; border:1px solid #e5e7eb; border-radius:8px;">
+                </div>
+
+                <div style="text-align:left; margin-bottom:20px;">
+                    <label
+                        style="display:block; font-size:0.8rem; font-weight:bold; color:#64748b; margin-bottom:5px;">Dashboard
+                        Display Currency</label>
+                    <select id="setting-display-currency"
+                        style="width:100%; padding:10px; border:1px solid #e5e7eb; border-radius:8px;">
+                        <option value="THB">THB (฿) - Thai Baht</option>
+                        <option value="USD">USD ($) - US Dollar</option>
+                        <option value="MMK">MMK (Ks) - Myanmar Kyat</option>
+                    </select>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn btn-cancel" onclick="closeProfileSettings()">Cancel</button>
+                    <button class="btn btn-save" onclick="saveProfileSettings()">Save Settings</button>
                 </div>
             </div>
         </div>
+
         <header>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <div style="font-weight:bold; color:#1e293b;">Dashboard</div>
-                <span class="privacy-icon" onclick="togglePrivacy()" id="privacy-btn">👁️</span>
+                <div style="display:flex; gap:15px; align-items:center;">
+                    <span class="privacy-icon" onclick="openProfileSettings()" title="Settings">⚙️</span>
+                    <span class="privacy-icon" onclick="togglePrivacy()" id="privacy-btn">👁️</span>
+                </div>
             </div>
-
             <div class="balance-grid">
                 <div class="balance-card">
                     <div class="label">Available Balance</div>
                     <div class="amount" id="val-liquid">...</div>
                 </div>
-
                 <div class="balance-card">
                     <div class="label">Total Savings</div>
                     <div class="amount" id="val-assets">...</div>
                 </div>
-
                 <div class="balance-card" style="grid-column: span 2;">
                     <div class="label">Store Inventory Value</div>
                     <div class="amount" id="val-stock" style="color:#3b82f6;">...</div>
                 </div>
             </div>
-
             <div style="margin-top: 15px; font-size: 0.8rem; color: #6b7280; cursor: pointer;"
-                onclick="resetIdentity()">
-                👤 <span id="current-user-display">Unknown</span> (Tap to switch)
+                onclick="openProfileSettings()">
+                👤 <span id="current-user-display">Unknown</span> (Tap to edit profile)
             </div>
         </header>
 
@@ -505,16 +499,12 @@
                 <button class="currency-btn" onclick="setCurrency('USD')" id="btn-USD">USD</button>
                 <button class="currency-btn active" onclick="setCurrency('THB')" id="btn-THB">THB</button>
             </div>
-            <input type="number" id="inp-amount" placeholder="Amount (e.g. 100)" step="0.01">
-
+            <input type="number" id="inp-amount" placeholder="Amount" step="0.01">
             <label style="font-size:0.8rem; color:#6b7280;">Category</label>
             <select id="inp-category" onchange="updateSubCategories()"></select>
-
             <label style="font-size:0.8rem; color:#6b7280;">Sub-Category</label>
             <select id="inp-subcategory"></select>
-
             <input type="text" id="inp-note" placeholder="Note (Brand, details...)">
-
             <div class="form-actions">
                 <button class="btn btn-cancel" onclick="closeForm()">Cancel</button>
                 <button class="btn btn-save" onclick="saveTransaction()">Save</button>
@@ -522,7 +512,13 @@
         </div>
         <div
             style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
-
+            <h3 style="margin:0 0 10px 0; font-size:1rem;">Cashflow</h3>
+            <div style="position:relative; min-height: 200px;">
+                <canvas id="cashflowChart"></canvas>
+            </div>
+        </div>
+        <div
+            style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <h3 style="margin:0; font-size:1rem;">Spending Analysis</h3>
                 <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem;">
@@ -534,21 +530,15 @@
                     <span>All</span>
                 </div>
             </div>
-
             <div style="position:relative; min-height: 250px;">
                 <button id="chart-back-btn" onclick="resetChartLevel()"
-                    style="display:none; position:absolute; top:0; left:0; z-index:10; background:#f1f5f9; border:none; padding:5px 10px; border-radius:15px; font-size:0.8rem; cursor:pointer; color:#64748b; font-weight:600;">
-                    ⬅ Back to Categories
-                </button>
+                    style="display:none; position:absolute; top:0; left:0; z-index:10; background:#f1f5f9; border:none; padding:5px 10px; border-radius:15px; font-size:0.8rem; cursor:pointer; color:#64748b; font-weight:600;">⬅
+                    Back to Categories</button>
                 <canvas id="expenseChart"></canvas>
             </div>
         </div>
-        <div style="padding: 0 20px 20px;">
-            <div
-                style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
-                <canvas id="expenseChart"></canvas>
-            </div>
 
+        <div style="padding: 0 20px 20px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <h3 style="margin:0; font-size:1rem; color:#6b7280; text-transform:uppercase;">Monthly Budgets</h3>
                 <button onclick="openBudgetSettings()"
@@ -559,7 +549,9 @@
 
         <div id="budget-settings-modal">
             <div class="settings-content">
-                <h3>Budget Limits (฿)</h3>
+                <h3 id="budget-settings-title">Budget Limits</h3>
+                <p style="font-size:0.8rem; color:#666; margin-bottom:15px;">Set your limits in your Display Currency.
+                </p>
                 <div id="budget-inputs" style="text-align:left;"></div>
                 <div class="form-actions" style="margin-top:20px;">
                     <button class="btn btn-cancel" onclick="closeBudgetSettings()">Cancel</button>
@@ -567,27 +559,23 @@
                 </div>
             </div>
         </div>
-        <div id="edit-modal"
-            style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:150; align-items:center; justify-content:center;">
-            <div style="background:white; padding:20px; border-radius:12px; width:85%; max-width:320px;">
+
+        <div id="edit-modal">
+            <div class="settings-content">
                 <h3>Edit Transaction</h3>
                 <input type="hidden" id="edit-uuid">
                 <input type="datetime-local" id="edit-date"
                     style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
-
                 <label style="font-size:0.8rem; color:#666;">Category</label>
                 <select id="edit-category" onchange="updateEditSubCategories()"
                     style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;"></select>
-
                 <label style="font-size:0.8rem; color:#666;">Sub-Category</label>
                 <select id="edit-subcategory"
                     style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;"></select>
-
                 <input type="number" id="edit-amount" placeholder="Amount" step="0.01"
                     style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
                 <input type="text" id="edit-note" placeholder="Note"
                     style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
-
                 <div style="display:flex; gap:10px;">
                     <button onclick="document.getElementById('edit-modal').style.display='none'"
                         class="btn btn-cancel">Cancel</button>
@@ -599,11 +587,14 @@
         <div class="list-header" style="align-items:center;">
             <span>Recent Transactions</span>
             <div style="display:flex; align-items:center; gap:8px;">
-                <button id="month-prev" onclick="prevMonth()" title="Previous month" style="background:white; border:1px solid #e5e7eb; padding:6px 8px; border-radius:8px; cursor:pointer;">◀</button>
-                <select id="month-filter" onchange="onMonthChange()" style="padding:6px 8px; border-radius:8px; border:1px solid #e5e7eb; background:white; font-size:0.9rem;">
+                <button id="month-prev" onclick="prevMonth()" title="Previous month"
+                    style="background:white; border:1px solid #e5e7eb; padding:6px 8px; border-radius:8px; cursor:pointer;">◀</button>
+                <select id="month-filter" onchange="onMonthChange()"
+                    style="padding:6px 8px; border-radius:8px; border:1px solid #e5e7eb; background:white; font-size:0.9rem;">
                     <option value="all">All</option>
                 </select>
-                <button id="month-next" onclick="nextMonth()" title="Next month" style="background:white; border:1px solid #e5e7eb; padding:6px 8px; border-radius:8px; cursor:pointer;">▶</button>
+                <button id="month-next" onclick="nextMonth()" title="Next month"
+                    style="background:white; border:1px solid #e5e7eb; padding:6px 8px; border-radius:8px; cursor:pointer;">▶</button>
                 <span id="sync-status" class="status-indicator">● Connecting...</span>
             </div>
         </div>
@@ -611,118 +602,195 @@
     </div>
 
     <script>
-        // --- CONFIGURATION ---
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyPS5SBcUIXmA5r37qvUbqOIoKJ5vcHJDRk99O7gm7RTUkSnv24yE-dBJF8SdcA7Nxh/exec'; // <--- CHECK THIS URL
         const DB_NAME = 'MyBankDB';
         const STORE_NAME = 'transactions';
 
-        // --- STATE ---
+        // --- GLOBAL CONFIG & STATE ---
         let db;
-        let currentUser = null;
         let currentType = 'Expense';
         let showAllCashflow = false;
-        let currentCurrency = 'THB'; // Default
-        let cachedTransactions = []; // To store data for re-rendering
-        let chartLevel = 'main';     // 'main' or 'sub'
-        let chartDrillTarget = null; // Which category are we drilling into?
-
-        // Privacy State (Load from memory)
+        let currentCurrency = 'THB';
+        let cachedTransactions = [];
+        let chartLevel = 'main';
+        let chartDrillTarget = null;
         let isPrivacyHidden = localStorage.getItem('myBankPrivacy') === 'true';
 
-        // Default Rates (Fallback)
-        let EXCHANGE_RATES = { "THB": 1, "USD": 32, "MMK": 0.008 };
+        // Load Config with Fallbacks
+        let EXCHANGE_RATES = (typeof DEFAULT_EXCHANGE_RATES !== 'undefined') ? DEFAULT_EXCHANGE_RATES : { "THB": 1, "USD": 32, "MMK": 0.008 };
+        let CATEGORY_CONFIG = (typeof DEFAULT_CATEGORY_CONFIG !== 'undefined') ? DEFAULT_CATEGORY_CONFIG : {};
+        const DEFAULT_LIMITS = (typeof DEFAULT_BUDGET_LIMITS !== 'undefined') ? DEFAULT_BUDGET_LIMITS : {};
 
-        // --- MASTER CONFIGURATION (Single Source of Truth) ---
-        // This combines your old categories with the new "Type" logic.
-        let CATEGORY_CONFIG = {
-            "Daily Living": { "type": "EXPENSE", "subs": ["Food", "Transport", "Utilities", "Household", "Family", "Donation", "Parent", "Baby", "IT Equipments and Accessories"] },
-            "Lifestyle": { "type": "EXPENSE", "subs": ["Clothes", "Cosmetic", "Entertainment", "Wearable"] },
-            "Agriculture": { "type": "EXPENSE", "subs": ["Agri Inputs", "Tools", "Labor"] },
-            "Assets & Savings": { "type": "ASSET", "subs": ["Gold", "Stocks", "Land", "Building", "Savings"] },
-            "Loans": { "type": "LIABILITY", "subs": ["Loan Received", "Loan Repayment", "Loan Interest"] },
-            "Income": { "type": "INCOME", "subs": ["Salary", "Bonus", "Other"] },
-            "Vehicle & Licenses": { "type": "EXPENSE", "subs": ["Motorcycle", "Car", "Motorcycle License Renewal", "Car License Renewal", "Driving License Renewal", "Fuel", "Insurance"] },
-            "Maintenance": { "type": "EXPENSE", "subs": ["Home", "Appliance Repair", "Car", "Motor Cycle", "Laptop", "Phone", "Other"] },
-            "Tech & Electronics": { "type": "EXPENSE", "subs": ["Laptop", "Peripherals", "Software", "Phone", "Tablet", "Other"] },
-            // --- NEW ICT BUSINESS CATEGORIES ---
-            "Store Inventory": {
-                "type": "ASSET",
-                "subs": ["Computers", "Peripherals", "Printers & Office", "Networking & Parts"]
-            },
-            "Business Sales": {
-                "type": "INCOME",
-                "subs": ["Project Payment", "Consulting Fee", "Product Sale"]
+        // --- ⚙️ SETTINGS & PROFILE LOGIC ---
+        let appSettings = JSON.parse(localStorage.getItem('myBankSettings')) || {
+            accountId: 'account_1',
+            userName: '',
+            displayCurrency: 'THB'
+        };
+        let currentUser = appSettings.accountId || 'account_1';
+
+        function getCurrencySymbol(curr) {
+            if (curr === 'USD') return '$';
+            if (curr === 'MMK') return 'Ks';
+            return '฿';
+        }
+
+        // 🔥 Currency Engine: Converts amounts for Display dynamically
+        function convertCurrency(amount, fromCurrency, toCurrency) {
+            if (fromCurrency === toCurrency) return amount;
+
+            const fromRate = EXCHANGE_RATES[fromCurrency] || 1;
+            const toRate = EXCHANGE_RATES[toCurrency] || 1;
+
+            // FIXED MATH: Convert to Base (THB) first by multiplying, then divide by Target rate
+            return (amount * fromRate) / toRate;
+        }
+
+        function checkIdentity() {
+            if (!appSettings.userName) {
+                openProfileSettings();
+            } else {
+                // Show the Display Name on the dashboard
+                document.getElementById('current-user-display').innerText = appSettings.userName;
             }
-        };
+        }
 
-        // --- BUDGET DEFAULTS (Add new categories to prevent errors) ---
-        const DEFAULT_LIMITS = {
-            "Daily Living": 10000,
-            "Lifestyle": 20000,
-            "Agriculture": 5000,
-            "Assets & Savings": 100000,
-            "Store Inventory": 200000, // High limit for business stock
-            "Loans": 0,
-            "Vehicle & Licenses": 5000,
-            "Maintenance": 5000,
-            "Tech & Electronics": 15000,
-        };
+        function openProfileSettings() {
+            document.getElementById('setting-account-id').value = appSettings.accountId || 'account_1';
+            document.getElementById('setting-user-name').value = appSettings.userName || '';
+            document.getElementById('setting-display-currency').value = appSettings.displayCurrency || 'THB';
+            document.getElementById('profile-settings-modal').style.display = 'flex';
+        }
 
-        // --- INIT ---
+        function closeProfileSettings() {
+            // ENFORCEMENT: Do not let them close if they haven't set a name yet
+            if (!appSettings.userName) {
+                alert("⚠️ Please enter a name to identify your transactions first.");
+                return;
+            }
+            document.getElementById('profile-settings-modal').style.display = 'none';
+        }
+
+        function saveProfileSettings() {
+            const accId = document.getElementById('setting-account-id').value;
+            const name = document.getElementById('setting-user-name').value.trim();
+            const curr = document.getElementById('setting-display-currency').value;
+
+            if (!name) return alert("Please enter a display name.");
+
+            // Save settings
+            appSettings.accountId = accId;
+            appSettings.userName = name;
+            appSettings.displayCurrency = curr;
+            localStorage.setItem('myBankSettings', JSON.stringify(appSettings));
+
+            // Update the app's active ID and the screen's text
+            currentUser = accId;
+            document.getElementById('current-user-display').innerText = name;
+
+            closeProfileSettings();
+            renderList();
+        }
+
+        // --- AUTHENTICATION LOGIC ---
+        let storedKey = localStorage.getItem('myBankKey');
+        let sessionActive = sessionStorage.getItem('myBankSession');
+        let userKey = storedKey || '';
+
+        if (storedKey && sessionActive === 'true') {
+            document.getElementById('login-overlay').style.display = 'none';
+        } else if (storedKey) {
+            document.getElementById('login-pass').placeholder = "Enter Password to Unlock";
+            document.getElementById('login-btn').innerText = "Unlock (Offline Ready)";
+        }
+
+        async function attemptLogin() {
+            const input = document.getElementById('login-pass').value;
+            const msg = document.getElementById('login-msg');
+
+            if (!input) return;
+            msg.innerText = "Verifying...";
+
+            if (storedKey && input === storedKey) {
+                unlockApp(input);
+                return;
+            }
+
+            if (!navigator.onLine) {
+                msg.innerText = "⚠️ Offline: Cannot verify new password.";
+                return;
+            }
+
+            try {
+                const res = await fetch(`${SCRIPT_URL}?key=${input}`);
+                const json = await res.json();
+
+                if (json.status === 'success') {
+                    localStorage.setItem('myBankKey', input);
+                    storedKey = input;
+                    unlockApp(input);
+                } else {
+                    msg.innerText = "⛔ Wrong Password";
+                }
+            } catch (e) {
+                console.error(e);
+                msg.innerText = "⚠️ Connection Error.";
+            }
+        }
+
+        function unlockApp(key) {
+            sessionStorage.setItem('myBankSession', 'true');
+            userKey = key;
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('login-pass').value = '';
+            renderList();
+            syncManager.push();
+        }
+
+        // --- APP STARTUP ---
         document.addEventListener('DOMContentLoaded', async () => {
             await initDB();
             checkIdentity();
-            populateCategoryUI(); // Fill dropdowns
+            populateCategoryUI();
             renderList();
 
-            const runSync = () => { syncManager.push(); syncManager.pull(); };
+            const runSync = () => {
+                if (userKey) { syncManager.push(); syncManager.pull(); }
+            };
             window.addEventListener('online', runSync);
             setInterval(runSync, 30000);
             runSync();
         });
+
         function setCurrency(curr) {
             currentCurrency = curr;
-            // Update Buttons UI
             ['MMK', 'USD', 'THB'].forEach(c => {
                 const btn = document.getElementById(`btn-${c}`);
                 if (c === curr) btn.classList.add('active');
                 else btn.classList.remove('active');
             });
-            // Optional: Update placeholder to show symbol
             document.getElementById('inp-amount').placeholder = `Amount (${curr})`;
         }
+
         function togglePrivacy() {
             isPrivacyHidden = !isPrivacyHidden;
             localStorage.setItem('myBankPrivacy', isPrivacyHidden);
-
-            // Update Icon UI
             document.getElementById('privacy-btn').innerText = isPrivacyHidden ? '🙈' : '👁️';
-
-            // Refresh the numbers
             renderList();
         }
-        // --- FORM LOGIC ---
-        // --- DYNAMIC FORM UI ---
+
         function populateCategoryUI() {
-            // Load from local storage if available
             const stored = localStorage.getItem('myBankConfig');
             if (stored) CATEGORY_CONFIG = JSON.parse(stored);
-
             const mainSelect = document.getElementById('inp-category');
             const currentVal = mainSelect.value;
-
             mainSelect.innerHTML = '';
-
             Object.keys(CATEGORY_CONFIG).forEach(cat => {
                 const opt = document.createElement('option');
                 opt.value = cat;
-                opt.innerText = cat; // e.g. "Assets & Savings"
+                opt.innerText = cat;
                 mainSelect.appendChild(opt);
             });
-
-            // Restore selection or default
             if (currentVal && CATEGORY_CONFIG[currentVal]) mainSelect.value = currentVal;
-
             updateSubCategories();
         }
 
@@ -730,7 +798,6 @@
             const mainCat = document.getElementById('inp-category').value;
             const subSelect = document.getElementById('inp-subcategory');
             subSelect.innerHTML = '';
-
             if (CATEGORY_CONFIG[mainCat]) {
                 CATEGORY_CONFIG[mainCat].subs.forEach(sub => {
                     const opt = document.createElement('option');
@@ -746,6 +813,9 @@
             document.getElementById('form-title').innerText = `Add ${type}`;
             document.getElementById('input-panel').classList.add('active');
             document.getElementById('inp-amount').focus();
+
+            // Auto-select their preferred dashboard currency for speed
+            setCurrency(appSettings.displayCurrency || 'THB');
         }
 
         function closeForm() {
@@ -757,16 +827,11 @@
         async function saveTransaction() {
             const amountRaw = parseFloat(document.getElementById('inp-amount').value);
             if (!amountRaw) return alert("Enter amount");
-
-            // ... [Get category, sub, note as before] ...
             const category = document.getElementById('inp-category').value;
             const subcategory = document.getElementById('inp-subcategory').value;
             const note = document.getElementById('inp-note').value;
             const amount = currentType === 'Expense' ? -Math.abs(amountRaw) : Math.abs(amountRaw);
-
-            // LOOK UP RATE
             const rate = EXCHANGE_RATES[currentCurrency] || 1;
-
             const tx = {
                 uuid: crypto.randomUUID(),
                 timestamp: new Date().toISOString(),
@@ -774,12 +839,11 @@
                 category: category,
                 sub_category: subcategory,
                 amount: amount,
-                currency: currentCurrency, // New
-                fx_rate: rate,             // New
+                currency: currentCurrency,
+                fx_rate: rate,
                 note: note,
                 synced: 0
             };
-
             await db.put(STORE_NAME, tx);
             closeForm();
             renderList();
@@ -788,20 +852,19 @@
 
         async function renderList() {
             const allTxs = await db.getAllFromIndex(STORE_NAME, 'timestamp');
-
-            // --- MONTH FILTER SETUP ---
             const monthFilterEl = document.getElementById('month-filter');
             let monthKeys = [];
             if (monthFilterEl) {
                 const saved = localStorage.getItem('myBankMonthFilter');
                 monthKeys = populateMonthFilter(allTxs, saved);
             }
-
-            // If a user is selected, filter by user first
             let txs = allTxs;
-            if (currentUser) txs = allTxs.filter(t => t.user_tag === currentUser);
-
-            // Apply month filter (if not 'all')
+            if (currentUser) {
+                txs = allTxs.filter(t =>
+                    t.user_tag === currentUser ||
+                    ((!t.user_tag || t.user_tag === 'Unknown') && currentUser === 'account_1')
+                );
+            }
             if (monthFilterEl && monthFilterEl.value && monthFilterEl.value !== 'all') {
                 const [y, m] = monthFilterEl.value.split('-');
                 txs = txs.filter(t => {
@@ -811,78 +874,48 @@
                     return d.getFullYear() === Number(y) && (d.getMonth() + 1) === Number(m);
                 });
             }
-
-            // Apply month filter (if not 'all')
-            if (monthFilterEl && monthFilterEl.value && monthFilterEl.value !== 'all') {
-                const [y, m] = monthFilterEl.value.split('-');
-                txs = txs.filter(t => {
-                    if (!t.timestamp) return false;
-                    const d = new Date(t.timestamp);
-                    if (isNaN(d)) return false;
-                    return d.getFullYear() === Number(y) && (d.getMonth() + 1) === Number(m);
-                });
-            }
-
-            // Cache transactions for chart drill-downs and other views
             cachedTransactions = txs.slice();
-
             const listEl = document.getElementById('tx-list');
             listEl.innerHTML = '';
 
-            // --- CALCULATION LOGIC ---
-            let totalLiquid = 0; // Cash on hand (Income - Expense - Assets Bought)
-            let totalSavings = 0; // Liquid Wealth (Gold, Savings)
-            let totalStock = 0;   // Illiquid Business Assets (Inventory)
+            let totalLiquid = 0;
+            let totalSavings = 0;
+            let totalStock = 0;
 
             txs.reverse().forEach(tx => {
-                // 1. Convert to Base Currency (THB)
-                const rate = tx.fx_rate || 1;
-                const amountBase = tx.amount * rate;
+                // 🔄 DYNAMIC MATH: Convert amount to user's Display Currency
+                const amountInDisplay = convertCurrency(Math.abs(tx.amount), tx.currency, appSettings.displayCurrency);
+                const signedAmount = tx.amount < 0 ? -amountInDisplay : amountInDisplay;
 
-                // 2. Identify Type
                 const type = getCategoryType(tx.category);
+                totalLiquid += signedAmount;
 
-                // 3. MATH:
-                // Liquid Balance: Always impacted by money leaving the wallet
-                totalLiquid += amountBase;
-
-                // Asset Separation Logic
                 if (type === 'ASSET') {
-                    const val = Math.abs(amountBase);
-
-                    // IF it is Inventory, add to Stock bucket
                     if (tx.category === 'Store Inventory') {
-                        totalStock += val;
+                        totalStock += amountInDisplay;
                     }
-                    // For 'Assets & Savings', only the 'Savings' sub-category counts as Total Savings
                     else if (tx.category === 'Assets & Savings') {
                         if (tx.sub_category === 'Savings') {
-                            totalSavings += val;
+                            totalSavings += amountInDisplay;
                         }
-                        // otherwise ignore other asset types (Gold/Stocks/Land) from Total Savings
                     }
-                    // Fallback: any other ASSET categories are treated as savings
                     else {
-                        totalSavings += val;
+                        totalSavings += amountInDisplay;
                     }
                 }
 
-                // --- LIST RENDERING (Standard) ---
+                // 📝 LIST RENDERING: Always show the ORIGINAL spent currency
                 const li = document.createElement('li');
                 li.className = 'tx-item';
                 const isSynced = tx.synced === 1;
                 const icon = isSynced ? '✓' : '🕒';
-
-                let symbol = '฿';
-                if (tx.currency === 'USD') symbol = '$';
-                if (tx.currency === 'MMK') symbol = 'Ks';
+                let symbol = getCurrencySymbol(tx.currency);
 
                 let color = tx.amount > 0 ? 'green' : 'red';
                 if (tx.category === 'Loans') {
                     if (tx.sub_category === 'Loan Received') color = '#16a34a';
                     if (tx.sub_category === 'Loan Repayment') color = '#dc2626';
                 }
-
                 li.innerHTML = `
                 <div class="tx-left" onclick="openEditModal('${tx.uuid}')">
                     <span class="tx-cat">${tx.category}</span>
@@ -893,18 +926,19 @@
                         ${symbol}${tx.amount.toLocaleString()}
                     </span>
                     <span class="tx-icon">${icon}</span>
-                </div>
-            `;
+                </div>`;
                 listEl.appendChild(li);
             });
 
-            // --- UPDATE DASHBOARD (With Privacy & Separation) ---
+            // 💰 DASHBOARD UPDATES
             const liquidEl = document.getElementById('val-liquid');
             const assetEl = document.getElementById('val-assets');
-            const stockEl = document.getElementById('val-stock'); // New Element
+            const stockEl = document.getElementById('val-stock');
             const privacyBtn = document.getElementById('privacy-btn');
 
             if (privacyBtn) privacyBtn.innerText = isPrivacyHidden ? '🙈' : '👁️';
+
+            const displaySym = getCurrencySymbol(appSettings.displayCurrency);
 
             if (isPrivacyHidden) {
                 liquidEl.innerText = '****';
@@ -912,27 +946,22 @@
                 stockEl.innerText = '****';
                 liquidEl.style.color = '#0f172a';
             } else {
-                liquidEl.innerText = `฿${totalLiquid.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-                assetEl.innerText = `฿${totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-                stockEl.innerText = `฿${totalStock.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-
-                // Color Logic
+                liquidEl.innerText = `${displaySym}${totalLiquid.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                assetEl.innerText = `${displaySym}${totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                stockEl.innerText = `${displaySym}${totalStock.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
                 liquidEl.style.color = totalLiquid >= 0 ? '#16a34a' : '#dc2626';
             }
 
             renderChart(txs);
+            renderCashflowChart(txs);
             renderBudgets(txs);
         }
 
-        // --- CHART (Group by Main Category) ---
         let chartInstance = null;
-        // --- SMART DASHBOARD LOGIC ---
-
+        let cashflowChartInstance = null;
         function getCategoryType(catName) {
             return CATEGORY_CONFIG[catName] ? CATEGORY_CONFIG[catName].type : 'EXPENSE';
         }
-
-        // --- ADVANCED CHARTING ENGINE (Phase 6) ---
 
         function resetChartLevel() {
             chartLevel = 'main';
@@ -940,21 +969,18 @@
             renderChart(cachedTransactions);
         }
 
-        // --- MONTH FILTER HELPERS ---
         function populateMonthFilter(allTxs, savedValue = null) {
             const monthFilterEl = document.getElementById('month-filter');
             if (!monthFilterEl) return [];
-
             const prev = savedValue || monthFilterEl.value || 'all';
             const monthsMap = {};
             allTxs.forEach(t => {
                 if (!t.timestamp) return;
                 const d = new Date(t.timestamp);
                 if (isNaN(d)) return;
-                const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}`;
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
                 monthsMap[key] = true;
             });
-
             const monthKeys = Object.keys(monthsMap).sort((a, b) => b.localeCompare(a));
             monthFilterEl.innerHTML = '<option value="all">All</option>' + monthKeys.map(k => {
                 const [y, m] = k.split('-');
@@ -962,10 +988,8 @@
                 const label = date.toLocaleString(undefined, { month: 'short' }) + ' ' + y;
                 return `<option value="${k}">${label}</option>`;
             }).join('');
-
             if (prev && Array.from(monthFilterEl.options).some(o => o.value === prev)) monthFilterEl.value = prev;
             else monthFilterEl.value = 'all';
-
             return monthKeys;
         }
 
@@ -988,14 +1012,11 @@
             const el = document.getElementById('month-filter');
             if (!el) return;
             const cur = el.value;
-            if (cur === 'all') {
-                // Go to oldest month
-                el.value = keys[keys.length - 1];
-            } else {
+            if (cur === 'all') { el.value = keys[keys.length - 1]; }
+            else {
                 const idx = keys.indexOf(cur);
                 if (idx === -1) el.value = keys[0];
                 else if (idx < keys.length - 1) el.value = keys[idx + 1];
-                // else stay at oldest
             }
             onMonthChange();
         }
@@ -1006,79 +1027,127 @@
             const el = document.getElementById('month-filter');
             if (!el) return;
             const cur = el.value;
-            if (cur === 'all') {
-                // Go to most recent month
-                el.value = keys[0];
-            } else {
+            if (cur === 'all') { el.value = keys[0]; }
+            else {
                 const idx = keys.indexOf(cur);
                 if (idx === -1) el.value = keys[0];
                 else if (idx > 0) el.value = keys[idx - 1];
-                else {
-                    // already at most recent -> go back to 'All'
-                    el.value = 'all';
-                }
+                else { el.value = 'all'; }
             }
             onMonthChange();
         }
 
         function processChartData(transactions) {
             const hierarchy = {};
-
             transactions.forEach(tx => {
-                // 1. Apply Filters (Same as Dashboard)
                 const type = getCategoryType(tx.category);
-                if (tx.amount >= 0 && type !== 'LIABILITY') return; // Skip Income
+                if (tx.amount >= 0 && type !== 'LIABILITY') return;
                 if (!showAllCashflow && (type === 'ASSET' || type === 'LIABILITY')) return;
 
-                // 2. CURRENCY CONVERSION FIX
-                // Use the rate saved with the transaction, or fallback to current rates
-                let rate = tx.fx_rate;
-                if (!rate || rate === 0) {
-                    rate = EXCHANGE_RATES[tx.currency] || 1;
-                }
+                // 🔄 DYNAMIC MATH for Chart
+                const amtDisplay = convertCurrency(Math.abs(tx.amount), tx.currency, appSettings.displayCurrency);
 
-                // Calculate "Normalized Amount" (Value in THB)
-                // Example: 50,000 MMK * 0.008 = 400 THB
-                const amtBase = Math.abs(tx.amount) * rate;
-
-                // 3. Build Hierarchy using Normalized Amount
                 const main = tx.category;
                 const sub = tx.sub_category;
                 const note = tx.note || 'No Description';
 
-                // Init Main Category
                 if (!hierarchy[main]) hierarchy[main] = { total: 0, subs: {}, topNotes: [] };
-                hierarchy[main].total += amtBase;
-                hierarchy[main].topNotes.push({ t: note, a: amtBase });
+                hierarchy[main].total += amtDisplay;
+                hierarchy[main].topNotes.push({ t: note, a: amtDisplay });
 
-                // Init Sub Category
                 if (!hierarchy[main].subs[sub]) hierarchy[main].subs[sub] = { total: 0, topNotes: [] };
-                hierarchy[main].subs[sub].total += amtBase;
-                hierarchy[main].subs[sub].topNotes.push({ t: note, a: amtBase });
+                hierarchy[main].subs[sub].total += amtDisplay;
+                hierarchy[main].subs[sub].topNotes.push({ t: note, a: amtDisplay });
             });
-
-            // 4. Sort Notes (Top 3 highest spenders)
             const sortNotes = (arr) => arr.sort((a, b) => b.a - a.a).slice(0, 3);
-
             Object.values(hierarchy).forEach(main => {
                 main.topNotes = sortNotes(main.topNotes);
-                Object.values(main.subs).forEach(sub => {
-                    sub.topNotes = sortNotes(sub.topNotes);
-                });
+                Object.values(main.subs).forEach(sub => { sub.topNotes = sortNotes(sub.topNotes); });
             });
-
             return hierarchy;
         }
 
+        function renderCashflowChart(transactions) {
+            const ctx = document.getElementById('cashflowChart').getContext('2d');
+            const displaySym = getCurrencySymbol(appSettings.displayCurrency);
+            const isUSD = appSettings.displayCurrency === 'USD';
+            const decimals = isUSD ? 2 : 0;
+
+            let totalIncome = 0;
+            let totalExpense = 0;
+
+            // 1. Calculate totals
+            transactions.forEach(tx => {
+                const type = getCategoryType(tx.category);
+                const amtDisplay = convertCurrency(Math.abs(tx.amount), tx.currency, appSettings.displayCurrency);
+
+                // Filter: Count positive amounts as Income (ignoring Liabilities like Loans)
+                if (tx.amount > 0 && type !== 'LIABILITY') {
+                    totalIncome += amtDisplay;
+                }
+                // Filter: Count negative amounts as Expense (ignoring Asset transfers and Liabilities)
+                else if (tx.amount < 0 && type !== 'ASSET' && type !== 'LIABILITY') {
+                    totalExpense += amtDisplay;
+                }
+            });
+
+            // 2. Destroy old chart to prevent hover glitch
+            if (cashflowChartInstance) {
+                cashflowChartInstance.destroy();
+            }
+
+            // 3. Draw the new Bar Chart
+            cashflowChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Income', 'Expense'],
+                    datasets: [{
+                        label: `Total (${appSettings.displayCurrency})`,
+                        data: [totalIncome, totalExpense],
+                        backgroundColor: ['#16a34a', '#dc2626'], // Green for Income, Red for Expense
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }, // Hide legend since labels explain it
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    let value = context.raw || 0;
+                                    return ` ${displaySym}${value.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function (value) {
+                                    // Shorten large numbers (e.g., 10,000 -> 10k) on the Y axis
+                                    if (value >= 1000) return displaySym + (value / 1000) + 'k';
+                                    return displaySym + value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
         function renderChart(transactions) {
             const ctx = document.getElementById('expenseChart').getContext('2d');
             const backBtn = document.getElementById('chart-back-btn');
             const dataObj = processChartData(transactions);
+            const displaySym = getCurrencySymbol(appSettings.displayCurrency);
+            const isUSD = appSettings.displayCurrency === 'USD';
+            const decimals = isUSD ? 2 : 0;
 
-            // --- PREPARE DATA BASED ON LEVEL ---
             let labels = [];
             let dataValues = [];
-            let activeNotes = {}; // Map label -> notes array
+            let activeNotes = {};
 
             if (chartLevel === 'main') {
                 backBtn.style.display = 'none';
@@ -1094,25 +1163,15 @@
                     labels.forEach(k => activeNotes[k] = subObj[k].topNotes);
                 }
             }
-
-            // --- DESTROY OLD CHART ---
             if (chartInstance) chartInstance.destroy();
-
-            // --- COLOR PALETTE ---
-            const colors = ['#ef4444', '#f97316', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'];
-
-            // --- RENDER NEW CHART ---
+            const colors = [
+                '#ef4444', '#f97316', '#f59e0b', '#10b981', '#06b6d4',
+                '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#84cc16',
+                '#14b8a6', '#6366f1', '#a855f7', '#d946ef', '#fb923c'
+            ];
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: dataValues,
-                        backgroundColor: colors,
-                        borderWidth: 0,
-                        hoverOffset: 10
-                    }]
-                },
+                data: { labels: labels, datasets: [{ data: dataValues, backgroundColor: colors, borderWidth: 0, hoverOffset: 10 }] },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -1120,7 +1179,6 @@
                         if (elements.length > 0 && chartLevel === 'main') {
                             const index = elements[0].index;
                             const clickedLabel = labels[index];
-                            // Trigger Drill-Down
                             chartLevel = 'sub';
                             chartDrillTarget = clickedLabel;
                             renderChart(cachedTransactions);
@@ -1133,20 +1191,18 @@
                                 label: function (context) {
                                     let label = context.label || '';
                                     let value = context.raw || 0;
-                                    return `${label}: ฿${value.toLocaleString()}`;
+                                    // 🔥 NEW: Apply the dynamic decimals variable here
+                                    return `${label}: ${displaySym}${value.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
                                 },
-                                // Inside renderChart -> options -> plugins -> tooltip -> callbacks
                                 afterBody: function (context) {
                                     const index = context[0].dataIndex;
                                     const label = context[0].label;
                                     const notes = activeNotes[label];
-
                                     if (!notes || notes.length === 0) return [];
-
-                                    let lines = [' ', '--- Top Spenders (THB) ---'];
+                                    let lines = [' ', `--- Top Spenders (${appSettings.displayCurrency}) ---`];
                                     notes.forEach(n => {
-                                        // Use 'amtBase' which we stored as 'n.a'
-                                        lines.push(`• ${n.t} (฿${n.a.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })})`);
+                                        // 🔥 NEW: Apply the dynamic decimals variable here too
+                                        lines.push(`• ${n.t} (${displaySym}${n.a.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })})`);
                                     });
                                     return lines;
                                 }
@@ -1158,228 +1214,176 @@
         }
 
         function renderBudgets(transactions) {
-            // Safety Check: Use defaults if getBudgetLimits fails
             let limits = {};
             try {
                 limits = getBudgetLimits();
                 if (!limits || Object.keys(limits).length === 0) throw new Error("No limits");
             } catch (e) {
-                console.warn("Budget error, using defaults", e);
                 limits = (typeof DEFAULT_LIMITS !== 'undefined') ? DEFAULT_LIMITS : {};
             }
-
             const listEl = document.getElementById('budget-list');
             if (!listEl) return;
             listEl.innerHTML = '';
-
             const now = new Date();
             const spending = {};
 
             transactions.forEach(tx => {
                 const d = new Date(tx.timestamp);
                 const type = getCategoryType(tx.category);
-
-                // FIX: Allow both EXPENSE and ASSET types to be tracked in budgets
-                // Buying Inventory (Asset) reduces your cash, so you should budget for it!
-                if (d.getMonth() === now.getMonth() &&
-                    d.getFullYear() === now.getFullYear() &&
-                    (type === 'EXPENSE' || type === 'ASSET') && // <--- CHANGED THIS LINE
-                    tx.amount < 0) {
-
+                if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && (type === 'EXPENSE' || type === 'ASSET') && tx.amount < 0) {
                     const cat = tx.category;
                     if (!spending[cat]) spending[cat] = 0;
 
-                    const rate = tx.fx_rate || 1;
-                    const amountInBase = Math.abs(tx.amount) * rate;
-
-                    spending[cat] += amountInBase;
+                    // 🔄 DYNAMIC MATH for Budgets
+                    const amountInDisplay = convertCurrency(Math.abs(tx.amount), tx.currency, appSettings.displayCurrency);
+                    spending[cat] += amountInDisplay;
                 }
             });
 
-            // Draw the bars
             Object.keys(limits).forEach(cat => {
-                const limit = limits[cat];
-                if (limit <= 0) return; // Skip if limit is 0
+                const limitDisp = convertCurrency(limits[cat], 'THB', appSettings.displayCurrency);
+                if (limitDisp <= 0) return;
 
                 const spent = spending[cat] || 0;
-                const pct = Math.min((spent / limit) * 100, 100);
-
+                const pct = Math.min((spent / limitDisp) * 100, 100);
                 let color = 'fill-green';
-                if (spent > limit) color = 'fill-red';
-                else if (spent > limit * 0.8) color = 'fill-orange';
+
+                if (spent > limitDisp) color = 'fill-red';
+                else if (spent > limitDisp * 0.8) color = 'fill-orange';
 
                 listEl.innerHTML += `
                 <div class="budget-item">
-                    <div class="budget-header">
-                        <span>${cat}</span>
-                        <span>${Math.round(spent).toLocaleString()} / ${limit.toLocaleString()}</span>
-                    </div>
+                    <div class="budget-header"><span>${cat}</span><span>${Math.round(spent).toLocaleString()} / ${Math.round(limitDisp).toLocaleString()}</span></div>
                     <div class="budget-track"><div class="budget-fill ${color}" style="width:${pct}%"></div></div>
                 </div>`;
             });
         }
-        // --- BUDGETS (Customizable) ---
+
         function getBudgetLimits() {
             const stored = localStorage.getItem('myBankBudgets');
             return stored ? JSON.parse(stored) : DEFAULT_LIMITS;
         }
 
-        // run on startup and once per day
         function checkMonthlyBudgetReset() {
             const now = new Date();
-            const monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`; // e.g. "2026-1"
+            const monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
             const last = localStorage.getItem('myBankBudgetsLastReset');
             if (last !== monthKey) {
-                // clear any stored monthly progress (if you store it)
                 localStorage.removeItem('myBankBudgetsProgress');
                 localStorage.setItem('myBankBudgetsLastReset', monthKey);
-                renderList(); // refresh UI
+                renderList();
             }
         }
-        document.addEventListener('DOMContentLoaded', () => {
-            checkMonthlyBudgetReset();
-            // check again once a day (86400000 ms)
-            setInterval(checkMonthlyBudgetReset, 24 * 60 * 60 * 1000);
-        });
 
-        // --- SETTINGS MODAL ---
         function openBudgetSettings() {
             const limits = getBudgetLimits();
             const container = document.getElementById('budget-inputs');
+
+            const sym = getCurrencySymbol(appSettings.displayCurrency);
+            document.getElementById('budget-settings-title').innerText = `Budget Limits (${sym})`;
+
             container.innerHTML = '';
             Object.keys(limits).forEach(cat => {
-                if (cat !== 'Salary') {
-                    container.innerHTML += `
-                <div style="margin-bottom:10px;">
-                    <label style="display:block; font-size:0.8rem; color:#6b7280;">${cat}</label>
-                    <input type="number" id="limit-${cat}" value="${limits[cat]}">
-                </div>`;
+                if (cat !== 'Salary' && cat !== 'Business Sales') {
+                    const displayLimit = convertCurrency(limits[cat], 'THB', appSettings.displayCurrency);
+
+                    container.innerHTML += `<div style="margin-bottom:10px;"><label style="display:block; font-size:0.8rem; color:#6b7280;">${cat}</label><input type="number" id="limit-${cat}" value="${Math.round(displayLimit)}"></div>`;
                 }
             });
             document.getElementById('budget-settings-modal').style.display = 'flex';
         }
-        function closeBudgetSettings() { document.getElementById('budget-settings-modal').style.display = 'none'; }
+
+        function closeBudgetSettings() {
+            document.getElementById('budget-settings-modal').style.display = 'none';
+        }
+
         function saveBudgetSettings() {
             const newLimits = { ...getBudgetLimits() };
             Object.keys(newLimits).forEach(cat => {
                 const el = document.getElementById(`limit-${cat}`);
-                if (el) newLimits[cat] = Number(el.value);
+                if (el) {
+                    newLimits[cat] = convertCurrency(Number(el.value), appSettings.displayCurrency, 'THB');
+                }
             });
             localStorage.setItem('myBankBudgets', JSON.stringify(newLimits));
             closeBudgetSettings();
             renderList();
         }
-        // --- HELPER: STATUS UPDATER ---
+
         function updateStatus(text, type) {
             const el = document.getElementById('sync-status');
-            if (!el) return; // Safety check
-
+            if (!el) return;
             el.innerText = `● ${text}`;
-            el.className = 'status-indicator'; // Reset classes
-
-            // Handle specific states
+            el.className = 'status-indicator';
             if (type === 'online' || type === true) el.classList.add('status-online');
             else if (type === 'syncing') el.classList.add('status-syncing');
             else if (type === 'error') el.classList.add('status-error');
             else el.classList.add('status-offline');
         }
 
-        // --- IDB & SYNC ---
         async function initDB() {
-            db = await idb.openDB(DB_NAME, 3, { // Bump Version to 3!
+            db = await idb.openDB(DB_NAME, 3, {
                 upgrade(db) {
                     if (!db.objectStoreNames.contains(STORE_NAME)) {
                         const store = db.createObjectStore(STORE_NAME, { keyPath: 'uuid' });
                         store.createIndex('synced', 'synced');
                         store.createIndex('timestamp', 'timestamp');
                     }
-                    // New Store for Queueing Edits
                     if (!db.objectStoreNames.contains('syncQueue')) {
                         db.createObjectStore('syncQueue', { keyPath: 'id', autoIncrement: true });
                     }
                 },
             });
         }
-        // --- IDENTITY MANAGEMENT ---
-        function checkIdentity() {
-            const stored = localStorage.getItem('sheetSyncUser');
-            if (!stored) {
-                document.getElementById('identity-modal').style.display = 'flex';
-            } else {
-                currentUser = stored;
-                document.getElementById('current-user-display').innerText = currentUser;
-                document.getElementById('identity-modal').style.display = 'none';
-            }
-        }
-
-        function setIdentity(name) {
-            localStorage.setItem('sheetSyncUser', name);
-            currentUser = name;
-            document.getElementById('current-user-display').innerText = currentUser;
-            document.getElementById('identity-modal').style.display = 'none';
-            renderList();
-        }
-
-        function resetIdentity() {
-            if (confirm('Switch User? This will reload the app.')) {
-                localStorage.removeItem('sheetSyncUser');
-                location.reload();
-            }
-        }
-
-        // Identity Logic
-        function checkIdentity() {
-            const stored = localStorage.getItem('sheetSyncUser');
-            if (!stored) document.getElementById('identity-modal').style.display = 'flex';
-            else {
-                currentUser = stored;
-                document.getElementById('current-user-display').innerText = currentUser;
-            }
-        }
-        function setIdentity(u) { localStorage.setItem('sheetSyncUser', u); currentUser = u; document.getElementById('current-user-display').innerText = currentUser; document.getElementById('identity-modal').style.display = 'none'; renderList(); }
-        function resetIdentity() { if (confirm('Switch user?')) { localStorage.removeItem('sheetSyncUser'); location.reload(); } }
 
         const syncManager = {
-            push: async () => {
-                syncManager.processQueue();
-            },
-
+            push: async () => { syncManager.processQueue(); },
             processQueue: async () => {
                 if (!navigator.onLine) { updateStatus('Offline', 'offline'); return; }
 
-                // A. Handle NEW Transactions (Append)
                 const pending = await db.getAllFromIndex(STORE_NAME, 'synced', 0);
                 if (pending.length > 0) {
-                    updateStatus('Syncing...', 'syncing'); // <--- Orange
+                    updateStatus('Syncing...', 'syncing');
                     try {
-                        await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: 'APPEND_ROWS', user: currentUser, data: pending }) });
+                        await fetch(SCRIPT_URL, {
+                            method: "POST",
+                            body: JSON.stringify({
+                                key: userKey,
+                                action: 'APPEND_ROWS',
+                                user: currentUser,
+                                data: pending
+                            })
+                        });
                         const tx = db.transaction(STORE_NAME, 'readwrite');
                         for (const item of pending) await tx.store.put({ ...item, synced: 1 });
                         await tx.done;
                     } catch (e) {
                         console.error("Append Failed", e);
-                        updateStatus('Sync Error', 'error'); // <--- Red
+                        updateStatus('Sync Error', 'error');
                         return;
                     }
                 }
 
-                // B. Handle EDITS (From Queue)
                 const editJobs = await db.getAll('syncQueue');
                 if (editJobs.length > 0) {
-                    updateStatus('Updating Edits...', 'syncing'); // <--- Orange
+                    updateStatus('Updating Edits...', 'syncing');
                     for (const job of editJobs) {
                         try {
                             const res = await fetch(SCRIPT_URL, {
                                 method: "POST",
-                                body: JSON.stringify({ action: job.type, user: currentUser, data: job.payload })
+                                body: JSON.stringify({
+                                    key: userKey,
+                                    action: job.type,
+                                    user: currentUser,
+                                    data: job.payload
+                                })
                             });
                             const json = await res.json();
-
                             if (json.status === 'success') {
                                 await db.delete('syncQueue', job.id);
                             } else {
                                 console.error("Edit Failed on Server:", json);
-                                updateStatus('Edit Error', 'error'); // <--- Red
+                                updateStatus('Edit Error', 'error');
                             }
                         } catch (e) {
                             console.error("Edit Network Fail", e);
@@ -1387,19 +1391,16 @@
                         }
                     }
                 }
-
-                // C. Pull latest data
                 syncManager.pull();
             },
 
             pull: async () => {
                 if (!navigator.onLine) return;
                 try {
-                    const res = await fetch(SCRIPT_URL);
+                    const res = await fetch(`${SCRIPT_URL}?key=${userKey}`);
                     const json = await res.json();
 
                     if (json.status === 'success') {
-                        // ... [Success Logic] ...
                         if (json.data.exchange_rates) {
                             EXCHANGE_RATES = json.data.exchange_rates.rates;
                             localStorage.setItem('myBankRates', JSON.stringify(EXCHANGE_RATES));
@@ -1409,44 +1410,39 @@
                             localStorage.setItem('myBankConfig', JSON.stringify(CATEGORY_CONFIG));
                             populateCategoryUI();
                         }
-
                         const tx = db.transaction(STORE_NAME, 'readwrite');
                         for (const row of json.data.recent_transactions) {
                             await tx.store.put({ ...row, amount: Number(row.amount), synced: 1 });
                         }
                         await tx.done;
                         renderList();
-                        updateStatus('Online', 'online'); // <--- Green Success
+                        updateStatus('Online', 'online');
                     } else {
                         console.error('Server Error:', json);
-                        updateStatus('Server Error', 'error'); // <--- Show Red Error
+                        updateStatus('Server Error', 'error');
                     }
                 } catch (e) {
                     console.error("Pull Failed:", e);
-                    // This catches the ERR_FAILED 200 error
-                    updateStatus('Connection Fail', 'error'); // <--- Show Red Error
+                    updateStatus('Connection Fail', 'error');
                 }
             }
         };
 
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
-        // --- EDIT LOGIC (Updated for Phase 4) ---
 
         function openEditModal(uuid) {
             db.get(STORE_NAME, uuid).then(tx => {
                 if (!tx) return alert("Transaction not found locally.");
-
                 document.getElementById('edit-uuid').value = tx.uuid;
                 const dateStr = new Date(tx.timestamp).toISOString().slice(0, 16);
                 document.getElementById('edit-date').value = dateStr;
+                const amtInput = document.getElementById('edit-amount');
+                amtInput.value = Math.abs(tx.amount);
+                amtInput.placeholder = `Amount (${tx.currency})`;
                 document.getElementById('edit-amount').value = Math.abs(tx.amount);
                 document.getElementById('edit-note').value = tx.note || '';
-
-                // Populate Main Categories from Config
                 const catSelect = document.getElementById('edit-category');
                 catSelect.innerHTML = '';
-
-                // 1. Fill Main Categories
                 Object.keys(CATEGORY_CONFIG).forEach(cat => {
                     const opt = document.createElement('option');
                     opt.value = cat;
@@ -1454,10 +1450,7 @@
                     if (cat === tx.category) opt.selected = true;
                     catSelect.appendChild(opt);
                 });
-
-                // 2. Fill Sub-Categories based on current selection
                 updateEditSubCategories(tx.sub_category);
-
                 document.getElementById('edit-modal').style.display = 'flex';
             });
         }
@@ -1466,8 +1459,6 @@
             const mainCat = document.getElementById('edit-category').value;
             const subSelect = document.getElementById('edit-subcategory');
             subSelect.innerHTML = '';
-
-            // Use CATEGORY_CONFIG instead of the old Map
             if (CATEGORY_CONFIG[mainCat]) {
                 CATEGORY_CONFIG[mainCat].subs.forEach(sub => {
                     const opt = document.createElement('option');
@@ -1476,7 +1467,6 @@
                     subSelect.appendChild(opt);
                 });
             }
-
             if (preselect) subSelect.value = preselect;
         }
 
@@ -1487,14 +1477,11 @@
             const sub = document.getElementById('edit-subcategory').value;
             const amtRaw = parseFloat(document.getElementById('edit-amount').value);
             const note = document.getElementById('edit-note').value;
-
             if (!amtRaw) return alert("Invalid Amount");
-
-            // Get original to know if it was income or expense
             const original = await db.get(STORE_NAME, uuid);
-            const isExpense = original.amount < 0;
+            const newCatType = getCategoryType(cat);
+            const isExpense = (newCatType === 'EXPENSE' || newCatType === 'ASSET');
             const finalAmount = isExpense ? -Math.abs(amtRaw) : Math.abs(amtRaw);
-
             const updatedTx = {
                 ...original,
                 timestamp: new Date(dateVal).toISOString(),
@@ -1502,18 +1489,10 @@
                 sub_category: sub,
                 amount: finalAmount,
                 note: note,
-                // Keep 'synced' status as is? No.
-                // If it was already synced (1), we leave it as 1 but queue an EDIT job.
-                // If it was pending (0), we leave it as 0 and the APPEND logic will pick up the new values.
             };
-
-            // 1. Optimistic Update (Local)
             await db.put(STORE_NAME, updatedTx);
             document.getElementById('edit-modal').style.display = 'none';
-            renderList(); // Update UI immediately
-
-            // 2. Queue the Edit Job
-            // If the item was already synced to Google Sheets, we must send an EDIT request.
+            renderList();
             if (original.synced === 1) {
                 const job = {
                     type: 'EDIT_TRANSACTION',
@@ -1529,15 +1508,11 @@
                 };
                 await db.put('syncQueue', job);
             }
-
-            // 3. Trigger Sync
             syncManager.processQueue();
         }
         function toggleChartMode() {
             showAllCashflow = document.getElementById('chart-toggle').checked;
-            // Re-render chart with new filter
-            const txs = db ? Promise.resolve(db.getAllFromIndex(STORE_NAME, 'timestamp')) : [];
-            txs.then(data => renderChart(data));
+            renderChart(cachedTransactions);
         }
     </script>
 </body>
