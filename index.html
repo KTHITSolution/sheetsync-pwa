@@ -55,19 +55,37 @@
             z-index: 10;
         }
 
-        .balance-amount {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin: 5px 0;
+        /* --- View Toggle Styles --- */
+        .view-toggle {
+            display: flex;
+            background: #e2e8f0;
+            border-radius: 8px;
+            padding: 4px;
+            margin-top: 15px;
+            justify-content: space-between;
         }
 
-        .balance-amount.pos {
-            color: var(--success);
+        .view-btn {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #64748b;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
         }
 
-        .balance-amount.neg {
-            color: var(--danger);
+        .view-btn.active {
+            background: white;
+            color: #0f172a;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
+
+        .balance-amount { font-size: 2.5rem; font-weight: 700; margin: 5px 0; }
+        .balance-amount.pos { color: var(--success); }
+        .balance-amount.neg { color: var(--danger); }
 
         .actions {
             display: grid;
@@ -90,13 +108,8 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
-        .btn-income {
-            background-color: var(--success);
-        }
-
-        .btn-expense {
-            background-color: var(--danger);
-        }
+        .btn-income { background-color: var(--success); }
+        .btn-expense { background-color: var(--danger); }
 
         #input-panel {
             background: var(--card-bg);
@@ -106,313 +119,75 @@
             display: none;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
         }
+        #input-panel.active { display: block; animation: slideDown 0.2s ease-out; }
 
-        #input-panel.active {
-            display: block;
-            animation: slideDown 0.2s ease-out;
+        input, select {
+            width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 1rem; box-sizing: border-box; background: white;
         }
 
-        input,
-        select {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 12px;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 1rem;
-            box-sizing: border-box;
-            background: white;
+        .form-actions { display: flex; gap: 10px; }
+        .btn-save { background-color: var(--primary); width: 100%; }
+        .btn-cancel { background-color: #9ca3af; width: auto; }
+
+        .list-header { padding: 0 20px; font-weight: 600; color: var(--text-sub); display: flex; justify-content: space-between; align-items: center; }
+        #tx-list { list-style: none; padding: 0 20px 80px 20px; margin: 10px 0 0 0; }
+        .tx-item { background: var(--card-bg); padding: 15px; margin-bottom: 10px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
+        .tx-cat { font-weight: 600; color: var(--text-main); }
+        .tx-meta { font-size: 0.8rem; color: var(--text-sub); margin-top: 2px; }
+        .tx-amount { font-weight: 700; }
+
+        .budget-item { margin-bottom: 15px; }
+        .budget-header { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 5px; }
+        .budget-track { background: #e5e7eb; height: 10px; border-radius: 5px; overflow: hidden; }
+        .budget-fill { height: 100%; transition: width 0.3s; }
+        .fill-green { background: #16a34a; }
+        .fill-orange { background: #f59e0b; }
+        .fill-red { background: #dc2626; }
+
+        #profile-settings-modal, #budget-settings-modal, #edit-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 200; display: none; align-items: center; justify-content: center;
+        }
+        .modal-content, .settings-content {
+            background: white; padding: 30px; border-radius: 16px; text-align: center; width: 85%; max-width: 320px; max-height: 80vh; overflow-y: auto;
         }
 
-        .form-actions {
-            display: flex;
-            gap: 10px;
-        }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
-        .btn-save {
-            background-color: var(--primary);
-            width: 100%;
-        }
+        .status-indicator { font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+        .status-online { color: #16a34a; }
+        .status-syncing { color: #f59e0b; animation: pulse 1.5s infinite; }
+        .status-offline { color: #6b7280; }
+        .status-error { color: #dc2626; }
 
-        .btn-cancel {
-            background-color: #9ca3af;
-            width: auto;
-        }
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
 
-        .list-header {
-            padding: 0 20px;
-            font-weight: 600;
-            color: var(--text-sub);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        .switch { position: relative; display: inline-block; width: 34px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #2563eb; }
+        input:checked + .slider:before { transform: translateX(14px); }
 
-        #tx-list {
-            list-style: none;
-            padding: 0 20px 80px 20px;
-            margin: 10px 0 0 0;
-        }
+        .currency-group { display: flex; gap: 10px; margin-bottom: 15px; }
+        .currency-btn { flex: 1; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; background: white; font-weight: 600; color: #6b7280; cursor: pointer; transition: all 0.2s; }
+        .currency-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
 
-        .tx-item {
-            background: var(--card-bg);
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-        }
+        .balance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
+        .balance-card { background: #f1f5f9; padding: 15px; border-radius: 12px; text-align: center; }
+        .balance-card .label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+        .balance-card .amount { font-size: 1.2rem; font-weight: 700; color: #0f172a; }
 
-        .tx-cat {
-            font-weight: 600;
-            color: var(--text-main);
-        }
-
-        .tx-meta {
-            font-size: 0.8rem;
-            color: var(--text-sub);
-            margin-top: 2px;
-        }
-
-        .tx-amount {
-            font-weight: 700;
-        }
-
-        .budget-item {
-            margin-bottom: 15px;
-        }
-
-        .budget-header {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.9rem;
-            margin-bottom: 5px;
-        }
-
-        .budget-track {
-            background: #e5e7eb;
-            height: 10px;
-            border-radius: 5px;
-            overflow: hidden;
-        }
-
-        .budget-fill {
-            height: 100%;
-            transition: width 0.3s;
-        }
-
-        .fill-green {
-            background: #16a34a;
-        }
-
-        .fill-orange {
-            background: #f59e0b;
-        }
-
-        .fill-red {
-            background: #dc2626;
-        }
-
-        #profile-settings-modal,
-        #budget-settings-modal,
-        #edit-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 200;
-            display: none;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-content,
-        .settings-content {
-            background: white;
-            padding: 30px;
-            border-radius: 16px;
-            text-align: center;
-            width: 85%;
-            max-width: 320px;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .status-indicator {
-            font-size: 0.8rem;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .status-online {
-            color: #16a34a;
-        }
-
-        .status-syncing {
-            color: #f59e0b;
-            animation: pulse 1.5s infinite;
-        }
-
-        .status-offline {
-            color: #6b7280;
-        }
-
-        .status-error {
-            color: #dc2626;
-        }
-
-        @keyframes pulse {
-            0% {
-                opacity: 0.6;
-            }
-
-            50% {
-                opacity: 1;
-            }
-
-            100% {
-                opacity: 0.6;
-            }
-        }
-
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 34px;
-            height: 20px;
-        }
-
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 34px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 14px;
-            width: 14px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-
-        input:checked+.slider {
-            background-color: #2563eb;
-        }
-
-        input:checked+.slider:before {
-            transform: translateX(14px);
-        }
-
-        .currency-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .currency-btn {
-            flex: 1;
-            padding: 10px;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            background: white;
-            font-weight: 600;
-            color: #6b7280;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .currency-btn.active {
-            background: #2563eb;
-            color: white;
-            border-color: #2563eb;
-        }
-
-        .balance-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 10px;
-        }
-
-        .balance-card {
-            background: #f1f5f9;
-            padding: 15px;
-            border-radius: 12px;
-            text-align: center;
-        }
-
-        .balance-card .label {
-            font-size: 0.75rem;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 5px;
-        }
-
-        .balance-card .amount {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: #0f172a;
-        }
-
-        .privacy-icon {
-            font-size: 1.2rem;
-            cursor: pointer;
-            opacity: 0.7;
-            transition: opacity 0.2s;
-        }
-
-        .privacy-icon:hover {
-            opacity: 1;
-        }
+        .privacy-icon { font-size: 1.2rem; cursor: pointer; opacity: 0.7; transition: opacity 0.2s; }
+        .privacy-icon:hover { opacity: 1; }
     </style>
 </head>
 
 <body>
-    <div id="login-overlay"
-        style="position:fixed; top:0; left:0; width:100%; height:100%; background:#2563eb; z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white;">
-        <img src="./assets/icon-192.png"
-            style="width:80px; margin-bottom:20px; border-radius:15px; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
+    <div id="login-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#2563eb; z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white;">
+        <img src="./assets/icon-192.png" style="width:80px; margin-bottom:20px; border-radius:15px; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
         <h2 style="margin:0 0 20px 0;">My Bank</h2>
-        <input type="password" id="login-pass" placeholder="Enter App Password"
-            style="padding:15px; border-radius:10px; border:none; width:80%; max-width:250px; text-align:center; font-size:1.2rem; color:#333;">
-        <button id="login-btn" onclick="attemptLogin()"
-            style="margin-top:20px; padding:12px 30px; background:white; color:#2563eb; border:none; border-radius:30px; font-weight:bold; font-size:1rem; cursor:pointer;">Unlock</button>
+        <input type="password" id="login-pass" placeholder="Enter App Password" style="padding:15px; border-radius:10px; border:none; width:80%; max-width:250px; text-align:center; font-size:1.2rem; color:#333;">
+        <button id="login-btn" onclick="attemptLogin()" style="margin-top:20px; padding:12px 30px; background:white; color:#2563eb; border:none; border-radius:30px; font-weight:bold; font-size:1rem; cursor:pointer;">Unlock</button>
         <p id="login-msg" style="margin-top:20px; font-size:0.9rem; opacity:0.8;"></p>
     </div>
 
@@ -420,32 +195,23 @@
 
         <div id="profile-settings-modal">
             <div class="settings-content">
-                <h2 style="margin:0 0 15px 0; color:#1e293b;">Profile & Settings</h2>
+                <h2 style="margin:0 0 15px 0; color:#1e293b;">Device Setup</h2>
+                <p style="font-size:0.8rem; color:#64748b; margin-bottom:20px;">Transactions added from this device will be tagged as this user.</p>
 
                 <div style="text-align:left; margin-bottom:15px;">
-                    <label
-                        style="display:block; font-size:0.8rem; font-weight:bold; color:#64748b; margin-bottom:5px;">Select
-                        Account Slot</label>
-                    <select id="setting-account-id"
-                        style="width:100%; padding:10px; border:1px solid #e5e7eb; border-radius:8px; margin-bottom:10px;">
+                    <label style="display:block; font-size:0.8rem; font-weight:bold; color:#64748b; margin-bottom:5px;">Who is using this phone?</label>
+                    <select id="setting-account-id" style="width:100%; padding:10px; border:1px solid #e5e7eb; border-radius:8px; margin-bottom:10px;">
                         <option value="account_1">Account 1 (Primary)</option>
                         <option value="account_2">Account 2 (Partner)</option>
-                        <option value="shared">Shared Expenses</option>
                     </select>
 
-                    <label
-                        style="display:block; font-size:0.8rem; font-weight:bold; color:#64748b; margin-bottom:5px;">Display
-                        Name (Change anytime)</label>
-                    <input type="text" id="setting-user-name" placeholder="e.g. John"
-                        style="width:100%; padding:10px; border:1px solid #e5e7eb; border-radius:8px;">
+                    <label style="display:block; font-size:0.8rem; font-weight:bold; color:#64748b; margin-bottom:5px;">Display Name</label>
+                    <input type="text" id="setting-user-name" placeholder="e.g. John" style="width:100%; padding:10px; border:1px solid #e5e7eb; border-radius:8px;">
                 </div>
 
                 <div style="text-align:left; margin-bottom:20px;">
-                    <label
-                        style="display:block; font-size:0.8rem; font-weight:bold; color:#64748b; margin-bottom:5px;">Dashboard
-                        Display Currency</label>
-                    <select id="setting-display-currency"
-                        style="width:100%; padding:10px; border:1px solid #e5e7eb; border-radius:8px;">
+                    <label style="display:block; font-size:0.8rem; font-weight:bold; color:#64748b; margin-bottom:5px;">Dashboard Display Currency</label>
+                    <select id="setting-display-currency" style="width:100%; padding:10px; border:1px solid #e5e7eb; border-radius:8px;">
                         <option value="THB">THB (฿) - Thai Baht</option>
                         <option value="USD">USD ($) - US Dollar</option>
                         <option value="MMK">MMK (Ks) - Myanmar Kyat</option>
@@ -467,6 +233,13 @@
                     <span class="privacy-icon" onclick="togglePrivacy()" id="privacy-btn">👁️</span>
                 </div>
             </div>
+
+            <div class="view-toggle">
+                <div class="view-btn active" id="view-Mine" onclick="setViewMode('Mine')">My Data</div>
+                <div class="view-btn" id="view-Partner" onclick="setViewMode('Partner')">Partner</div>
+                <div class="view-btn" id="view-Combined" onclick="setViewMode('Combined')">Combined</div>
+            </div>
+
             <div class="balance-grid">
                 <div class="balance-card">
                     <div class="label">Available Balance</div>
@@ -481,10 +254,6 @@
                     <div class="amount" id="val-stock" style="color:#3b82f6;">...</div>
                 </div>
             </div>
-            <div style="margin-top: 15px; font-size: 0.8rem; color: #6b7280; cursor: pointer;"
-                onclick="openProfileSettings()">
-                👤 <span id="current-user-display">Unknown</span> (Tap to edit profile)
-            </div>
         </header>
 
         <div class="actions">
@@ -494,6 +263,10 @@
 
         <div id="input-panel">
             <h3 id="form-title">Add Transaction</h3>
+            <p style="font-size:0.8rem; color:#f59e0b; margin-top:-10px; margin-bottom:15px; display:none;" id="form-warning">
+                Adding data as <b id="form-adding-as"></b>
+            </p>
+
             <div class="currency-group">
                 <button class="currency-btn" onclick="setCurrency('MMK')" id="btn-MMK">MMK</button>
                 <button class="currency-btn" onclick="setCurrency('USD')" id="btn-USD">USD</button>
@@ -510,15 +283,15 @@
                 <button class="btn btn-save" onclick="saveTransaction()">Save</button>
             </div>
         </div>
-        <div
-            style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
+        
+        <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
             <h3 style="margin:0 0 10px 0; font-size:1rem;">Cashflow</h3>
             <div style="position:relative; min-height: 200px;">
                 <canvas id="cashflowChart"></canvas>
             </div>
         </div>
-        <div
-            style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
+        
+        <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <h3 style="margin:0; font-size:1rem;">Spending Analysis</h3>
                 <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem;">
@@ -531,9 +304,7 @@
                 </div>
             </div>
             <div style="position:relative; min-height: 250px;">
-                <button id="chart-back-btn" onclick="resetChartLevel()"
-                    style="display:none; position:absolute; top:0; left:0; z-index:10; background:#f1f5f9; border:none; padding:5px 10px; border-radius:15px; font-size:0.8rem; cursor:pointer; color:#64748b; font-weight:600;">⬅
-                    Back to Categories</button>
+                <button id="chart-back-btn" onclick="resetChartLevel()" style="display:none; position:absolute; top:0; left:0; z-index:10; background:#f1f5f9; border:none; padding:5px 10px; border-radius:15px; font-size:0.8rem; cursor:pointer; color:#64748b; font-weight:600;">⬅ Back to Categories</button>
                 <canvas id="expenseChart"></canvas>
             </div>
         </div>
@@ -541,8 +312,7 @@
         <div style="padding: 0 20px 20px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <h3 style="margin:0; font-size:1rem; color:#6b7280; text-transform:uppercase;">Monthly Budgets</h3>
-                <button onclick="openBudgetSettings()"
-                    style="background:none; border:none; font-size:1.2rem; cursor:pointer;">⚙️</button>
+                <button onclick="openBudgetSettings()" style="background:none; border:none; font-size:1.2rem; cursor:pointer;">⚙️</button>
             </div>
             <div id="budget-list"></div>
         </div>
@@ -550,8 +320,7 @@
         <div id="budget-settings-modal">
             <div class="settings-content">
                 <h3 id="budget-settings-title">Budget Limits</h3>
-                <p style="font-size:0.8rem; color:#666; margin-bottom:15px;">Set your limits in your Display Currency.
-                </p>
+                <p style="font-size:0.8rem; color:#666; margin-bottom:15px;">Set your limits in your Display Currency.</p>
                 <div id="budget-inputs" style="text-align:left;"></div>
                 <div class="form-actions" style="margin-top:20px;">
                     <button class="btn btn-cancel" onclick="closeBudgetSettings()">Cancel</button>
@@ -564,21 +333,15 @@
             <div class="settings-content">
                 <h3>Edit Transaction</h3>
                 <input type="hidden" id="edit-uuid">
-                <input type="datetime-local" id="edit-date"
-                    style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
+                <input type="datetime-local" id="edit-date" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
                 <label style="font-size:0.8rem; color:#666;">Category</label>
-                <select id="edit-category" onchange="updateEditSubCategories()"
-                    style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;"></select>
+                <select id="edit-category" onchange="updateEditSubCategories()" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;"></select>
                 <label style="font-size:0.8rem; color:#666;">Sub-Category</label>
-                <select id="edit-subcategory"
-                    style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;"></select>
-                <input type="number" id="edit-amount" placeholder="Amount" step="0.01"
-                    style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
-                <input type="text" id="edit-note" placeholder="Note"
-                    style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
+                <select id="edit-subcategory" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;"></select>
+                <input type="number" id="edit-amount" placeholder="Amount" step="0.01" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
+                <input type="text" id="edit-note" placeholder="Note" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
                 <div style="display:flex; gap:10px;">
-                    <button onclick="document.getElementById('edit-modal').style.display='none'"
-                        class="btn btn-cancel">Cancel</button>
+                    <button onclick="document.getElementById('edit-modal').style.display='none'" class="btn btn-cancel">Cancel</button>
                     <button onclick="saveEdit()" class="btn btn-save">Save Changes</button>
                 </div>
             </div>
@@ -587,14 +350,11 @@
         <div class="list-header" style="align-items:center;">
             <span>Recent Transactions</span>
             <div style="display:flex; align-items:center; gap:8px;">
-                <button id="month-prev" onclick="prevMonth()" title="Previous month"
-                    style="background:white; border:1px solid #e5e7eb; padding:6px 8px; border-radius:8px; cursor:pointer;">◀</button>
-                <select id="month-filter" onchange="onMonthChange()"
-                    style="padding:6px 8px; border-radius:8px; border:1px solid #e5e7eb; background:white; font-size:0.9rem;">
+                <button id="month-prev" onclick="prevMonth()" title="Previous month" style="background:white; border:1px solid #e5e7eb; padding:6px 8px; border-radius:8px; cursor:pointer;">◀</button>
+                <select id="month-filter" onchange="onMonthChange()" style="padding:6px 8px; border-radius:8px; border:1px solid #e5e7eb; background:white; font-size:0.9rem;">
                     <option value="all">All</option>
                 </select>
-                <button id="month-next" onclick="nextMonth()" title="Next month"
-                    style="background:white; border:1px solid #e5e7eb; padding:6px 8px; border-radius:8px; cursor:pointer;">▶</button>
+                <button id="month-next" onclick="nextMonth()" title="Next month" style="background:white; border:1px solid #e5e7eb; padding:6px 8px; border-radius:8px; cursor:pointer;">▶</button>
                 <span id="sync-status" class="status-indicator">● Connecting...</span>
             </div>
         </div>
@@ -615,6 +375,9 @@
         let chartDrillTarget = null;
         let isPrivacyHidden = localStorage.getItem('myBankPrivacy') === 'true';
 
+        // View State Engine
+        let currentViewMode = 'Mine'; // Can be 'Mine', 'Partner', or 'Combined'
+
         // Load Config with Fallbacks
         let EXCHANGE_RATES = (typeof DEFAULT_EXCHANGE_RATES !== 'undefined') ? DEFAULT_EXCHANGE_RATES : { "THB": 1, "USD": 32, "MMK": 0.008 };
         let CATEGORY_CONFIG = (typeof DEFAULT_CATEGORY_CONFIG !== 'undefined') ? DEFAULT_CATEGORY_CONFIG : {};
@@ -626,7 +389,7 @@
             userName: '',
             displayCurrency: 'THB'
         };
-        let currentUser = appSettings.accountId || 'account_1';
+        let currentUser = appSettings.accountId || 'account_1'; // NEVER CHANGES based on View Mode
 
         function getCurrencySymbol(curr) {
             if (curr === 'USD') return '$';
@@ -634,23 +397,16 @@
             return '฿';
         }
 
-        // 🔥 Currency Engine: Converts amounts for Display dynamically
         function convertCurrency(amount, fromCurrency, toCurrency) {
             if (fromCurrency === toCurrency) return amount;
-
             const fromRate = EXCHANGE_RATES[fromCurrency] || 1;
             const toRate = EXCHANGE_RATES[toCurrency] || 1;
-
-            // FIXED MATH: Convert to Base (THB) first by multiplying, then divide by Target rate
             return (amount * fromRate) / toRate;
         }
 
         function checkIdentity() {
             if (!appSettings.userName) {
                 openProfileSettings();
-            } else {
-                // Show the Display Name on the dashboard
-                document.getElementById('current-user-display').innerText = appSettings.userName;
             }
         }
 
@@ -662,7 +418,6 @@
         }
 
         function closeProfileSettings() {
-            // ENFORCEMENT: Do not let them close if they haven't set a name yet
             if (!appSettings.userName) {
                 alert("⚠️ Please enter a name to identify your transactions first.");
                 return;
@@ -677,16 +432,12 @@
 
             if (!name) return alert("Please enter a display name.");
 
-            // Save settings
             appSettings.accountId = accId;
             appSettings.userName = name;
             appSettings.displayCurrency = curr;
             localStorage.setItem('myBankSettings', JSON.stringify(appSettings));
 
-            // Update the app's active ID and the screen's text
             currentUser = accId;
-            document.getElementById('current-user-display').innerText = name;
-
             closeProfileSettings();
             renderList();
         }
@@ -761,6 +512,18 @@
             runSync();
         });
 
+        // --- VIEW MODE TOGGLE LOGIC ---
+        function setViewMode(mode) {
+            currentViewMode = mode;
+            // Update UI buttons
+            ['Mine', 'Partner', 'Combined'].forEach(m => {
+                const btn = document.getElementById(`view-${m}`);
+                if (m === mode) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+            renderList();
+        }
+
         function setCurrency(curr) {
             currentCurrency = curr;
             ['MMK', 'USD', 'THB'].forEach(c => {
@@ -813,9 +576,16 @@
             document.getElementById('form-title').innerText = `Add ${type}`;
             document.getElementById('input-panel').classList.add('active');
             document.getElementById('inp-amount').focus();
-
-            // Auto-select their preferred dashboard currency for speed
             setCurrency(appSettings.displayCurrency || 'THB');
+
+            // Show warning if adding while looking at Partner's dashboard
+            const warningEl = document.getElementById('form-warning');
+            if (currentViewMode !== 'Mine') {
+                document.getElementById('form-adding-as').innerText = appSettings.userName;
+                warningEl.style.display = 'block';
+            } else {
+                warningEl.style.display = 'none';
+            }
         }
 
         function closeForm() {
@@ -835,7 +605,7 @@
             const tx = {
                 uuid: crypto.randomUUID(),
                 timestamp: new Date().toISOString(),
-                user_tag: currentUser,
+                user_tag: currentUser, // 🔥 THIS IS ALWAYS THE DEVICE OWNER
                 category: category,
                 sub_category: subcategory,
                 amount: amount,
@@ -858,13 +628,18 @@
                 const saved = localStorage.getItem('myBankMonthFilter');
                 monthKeys = populateMonthFilter(allTxs, saved);
             }
+            
+            // 🔥 SMART FILTERING BASED ON VIEW MODE
             let txs = allTxs;
-            if (currentUser) {
-                txs = allTxs.filter(t =>
-                    t.user_tag === currentUser ||
-                    ((!t.user_tag || t.user_tag === 'Unknown') && currentUser === 'account_1')
-                );
-            }
+            if (currentViewMode === 'Mine') {
+                txs = allTxs.filter(t => t.user_tag === currentUser || ((!t.user_tag || t.user_tag === 'Unknown') && currentUser === 'account_1'));
+            } else if (currentViewMode === 'Partner') {
+                const partnerId = currentUser === 'account_1' ? 'account_2' : 'account_1';
+                txs = allTxs.filter(t => t.user_tag === partnerId);
+            } 
+            // If 'Combined', we just leave txs = allTxs (shows everything)
+
+            // Apply Month Filter
             if (monthFilterEl && monthFilterEl.value && monthFilterEl.value !== 'all') {
                 const [y, m] = monthFilterEl.value.split('-');
                 txs = txs.filter(t => {
@@ -883,7 +658,6 @@
             let totalStock = 0;
 
             txs.reverse().forEach(tx => {
-                // 🔄 DYNAMIC MATH: Convert amount to user's Display Currency
                 const amountInDisplay = convertCurrency(Math.abs(tx.amount), tx.currency, appSettings.displayCurrency);
                 const signedAmount = tx.amount < 0 ? -amountInDisplay : amountInDisplay;
 
@@ -904,7 +678,6 @@
                     }
                 }
 
-                // 📝 LIST RENDERING: Always show the ORIGINAL spent currency
                 const li = document.createElement('li');
                 li.className = 'tx-item';
                 const isSynced = tx.synced === 1;
@@ -916,9 +689,16 @@
                     if (tx.sub_category === 'Loan Received') color = '#16a34a';
                     if (tx.sub_category === 'Loan Repayment') color = '#dc2626';
                 }
+                
+                // Show a tiny icon if in Combined view so you know who spent what
+                let userBadge = '';
+                if (currentViewMode === 'Combined') {
+                    userBadge = (tx.user_tag === currentUser) ? '👤 Me' : '👤 Ptr';
+                }
+
                 li.innerHTML = `
                 <div class="tx-left" onclick="openEditModal('${tx.uuid}')">
-                    <span class="tx-cat">${tx.category}</span>
+                    <span class="tx-cat">${tx.category} ${userBadge ? `<span style="font-size:0.7rem; background:#e2e8f0; padding:2px 4px; border-radius:4px; margin-left:4px;">${userBadge}</span>` : ''}</span>
                     <span class="tx-meta">${tx.sub_category} • ${symbol}${Math.abs(tx.amount).toLocaleString()}</span>
                 </div>
                 <div class="tx-right" onclick="openEditModal('${tx.uuid}')">
@@ -930,14 +710,13 @@
                 listEl.appendChild(li);
             });
 
-            // 💰 DASHBOARD UPDATES
+            // DASHBOARD UPDATES
             const liquidEl = document.getElementById('val-liquid');
             const assetEl = document.getElementById('val-assets');
             const stockEl = document.getElementById('val-stock');
             const privacyBtn = document.getElementById('privacy-btn');
 
             if (privacyBtn) privacyBtn.innerText = isPrivacyHidden ? '🙈' : '👁️';
-
             const displaySym = getCurrencySymbol(appSettings.displayCurrency);
 
             if (isPrivacyHidden) {
@@ -1044,9 +823,7 @@
                 if (tx.amount >= 0 && type !== 'LIABILITY') return;
                 if (!showAllCashflow && (type === 'ASSET' || type === 'LIABILITY')) return;
 
-                // 🔄 DYNAMIC MATH for Chart
                 const amtDisplay = convertCurrency(Math.abs(tx.amount), tx.currency, appSettings.displayCurrency);
-
                 const main = tx.category;
                 const sub = tx.sub_category;
                 const note = tx.note || 'No Description';
@@ -1076,27 +853,19 @@
             let totalIncome = 0;
             let totalExpense = 0;
 
-            // 1. Calculate totals
             transactions.forEach(tx => {
                 const type = getCategoryType(tx.category);
                 const amtDisplay = convertCurrency(Math.abs(tx.amount), tx.currency, appSettings.displayCurrency);
 
-                // Filter: Count positive amounts as Income (ignoring Liabilities like Loans)
                 if (tx.amount > 0 && type !== 'LIABILITY') {
                     totalIncome += amtDisplay;
-                }
-                // Filter: Count negative amounts as Expense (ignoring Asset transfers and Liabilities)
-                else if (tx.amount < 0 && type !== 'ASSET' && type !== 'LIABILITY') {
+                } else if (tx.amount < 0 && type !== 'ASSET' && type !== 'LIABILITY') {
                     totalExpense += amtDisplay;
                 }
             });
 
-            // 2. Destroy old chart to prevent hover glitch
-            if (cashflowChartInstance) {
-                cashflowChartInstance.destroy();
-            }
+            if (cashflowChartInstance) cashflowChartInstance.destroy();
 
-            // 3. Draw the new Bar Chart
             cashflowChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -1104,36 +873,17 @@
                     datasets: [{
                         label: `Total (${appSettings.displayCurrency})`,
                         data: [totalIncome, totalExpense],
-                        backgroundColor: ['#16a34a', '#dc2626'], // Green for Income, Red for Expense
+                        backgroundColor: ['#16a34a', '#dc2626'],
                         borderRadius: 6
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive: true, maintainAspectRatio: false,
                     plugins: {
-                        legend: { display: false }, // Hide legend since labels explain it
-                        tooltip: {
-                            callbacks: {
-                                label: function (context) {
-                                    let value = context.raw || 0;
-                                    return ` ${displaySym}${value.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
-                                }
-                            }
-                        }
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: function (context) { return ` ${displaySym}${context.raw.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`; } } }
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function (value) {
-                                    // Shorten large numbers (e.g., 10,000 -> 10k) on the Y axis
-                                    if (value >= 1000) return displaySym + (value / 1000) + 'k';
-                                    return displaySym + value;
-                                }
-                            }
-                        }
-                    }
+                    scales: { y: { beginAtZero: true, ticks: { callback: function (value) { if (value >= 1000) return displaySym + (value / 1000) + 'k'; return displaySym + value; } } } }
                 }
             });
         }
@@ -1145,9 +895,7 @@
             const isUSD = appSettings.displayCurrency === 'USD';
             const decimals = isUSD ? 2 : 0;
 
-            let labels = [];
-            let dataValues = [];
-            let activeNotes = {};
+            let labels = []; let dataValues = []; let activeNotes = {};
 
             if (chartLevel === 'main') {
                 backBtn.style.display = 'none';
@@ -1164,23 +912,16 @@
                 }
             }
             if (chartInstance) chartInstance.destroy();
-            const colors = [
-                '#ef4444', '#f97316', '#f59e0b', '#10b981', '#06b6d4',
-                '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#84cc16',
-                '#14b8a6', '#6366f1', '#a855f7', '#d946ef', '#fb923c'
-            ];
+            const colors = ['#ef4444', '#f97316', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#84cc16', '#14b8a6', '#6366f1', '#a855f7', '#d946ef', '#fb923c'];
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: { labels: labels, datasets: [{ data: dataValues, backgroundColor: colors, borderWidth: 0, hoverOffset: 10 }] },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive: true, maintainAspectRatio: false,
                     onClick: (e, elements) => {
                         if (elements.length > 0 && chartLevel === 'main') {
-                            const index = elements[0].index;
-                            const clickedLabel = labels[index];
                             chartLevel = 'sub';
-                            chartDrillTarget = clickedLabel;
+                            chartDrillTarget = labels[elements[0].index];
                             renderChart(cachedTransactions);
                         }
                     },
@@ -1188,22 +929,12 @@
                         legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } },
                         tooltip: {
                             callbacks: {
-                                label: function (context) {
-                                    let label = context.label || '';
-                                    let value = context.raw || 0;
-                                    // 🔥 NEW: Apply the dynamic decimals variable here
-                                    return `${label}: ${displaySym}${value.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
-                                },
+                                label: function (context) { return `${context.label}: ${displaySym}${context.raw.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`; },
                                 afterBody: function (context) {
-                                    const index = context[0].dataIndex;
-                                    const label = context[0].label;
-                                    const notes = activeNotes[label];
+                                    const notes = activeNotes[context[0].label];
                                     if (!notes || notes.length === 0) return [];
                                     let lines = [' ', `--- Top Spenders (${appSettings.displayCurrency}) ---`];
-                                    notes.forEach(n => {
-                                        // 🔥 NEW: Apply the dynamic decimals variable here too
-                                        lines.push(`• ${n.t} (${displaySym}${n.a.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })})`);
-                                    });
+                                    notes.forEach(n => lines.push(`• ${n.t} (${displaySym}${n.a.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })})`));
                                     return lines;
                                 }
                             }
@@ -1215,12 +946,7 @@
 
         function renderBudgets(transactions) {
             let limits = {};
-            try {
-                limits = getBudgetLimits();
-                if (!limits || Object.keys(limits).length === 0) throw new Error("No limits");
-            } catch (e) {
-                limits = (typeof DEFAULT_LIMITS !== 'undefined') ? DEFAULT_LIMITS : {};
-            }
+            try { limits = getBudgetLimits(); if (!limits || Object.keys(limits).length === 0) throw new Error("No limits"); } catch (e) { limits = (typeof DEFAULT_LIMITS !== 'undefined') ? DEFAULT_LIMITS : {}; }
             const listEl = document.getElementById('budget-list');
             if (!listEl) return;
             listEl.innerHTML = '';
@@ -1233,77 +959,52 @@
                 if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && (type === 'EXPENSE' || type === 'ASSET') && tx.amount < 0) {
                     const cat = tx.category;
                     if (!spending[cat]) spending[cat] = 0;
-
-                    // 🔄 DYNAMIC MATH for Budgets
-                    const amountInDisplay = convertCurrency(Math.abs(tx.amount), tx.currency, appSettings.displayCurrency);
-                    spending[cat] += amountInDisplay;
+                    spending[cat] += convertCurrency(Math.abs(tx.amount), tx.currency, appSettings.displayCurrency);
                 }
             });
 
             Object.keys(limits).forEach(cat => {
                 const limitDisp = convertCurrency(limits[cat], 'THB', appSettings.displayCurrency);
                 if (limitDisp <= 0) return;
-
                 const spent = spending[cat] || 0;
                 const pct = Math.min((spent / limitDisp) * 100, 100);
                 let color = 'fill-green';
-
                 if (spent > limitDisp) color = 'fill-red';
                 else if (spent > limitDisp * 0.8) color = 'fill-orange';
-
-                listEl.innerHTML += `
-                <div class="budget-item">
-                    <div class="budget-header"><span>${cat}</span><span>${Math.round(spent).toLocaleString()} / ${Math.round(limitDisp).toLocaleString()}</span></div>
-                    <div class="budget-track"><div class="budget-fill ${color}" style="width:${pct}%"></div></div>
-                </div>`;
+                listEl.innerHTML += `<div class="budget-item"><div class="budget-header"><span>${cat}</span><span>${Math.round(spent).toLocaleString()} / ${Math.round(limitDisp).toLocaleString()}</span></div><div class="budget-track"><div class="budget-fill ${color}" style="width:${pct}%"></div></div></div>`;
             });
         }
 
-        function getBudgetLimits() {
-            const stored = localStorage.getItem('myBankBudgets');
-            return stored ? JSON.parse(stored) : DEFAULT_LIMITS;
-        }
+        function getBudgetLimits() { const stored = localStorage.getItem('myBankBudgets'); return stored ? JSON.parse(stored) : DEFAULT_LIMITS; }
 
         function checkMonthlyBudgetReset() {
-            const now = new Date();
-            const monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
-            const last = localStorage.getItem('myBankBudgetsLastReset');
-            if (last !== monthKey) {
-                localStorage.removeItem('myBankBudgetsProgress');
-                localStorage.setItem('myBankBudgetsLastReset', monthKey);
-                renderList();
+            const now = new Date(); const monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
+            if (localStorage.getItem('myBankBudgetsLastReset') !== monthKey) {
+                localStorage.removeItem('myBankBudgetsProgress'); localStorage.setItem('myBankBudgetsLastReset', monthKey); renderList();
             }
         }
 
         function openBudgetSettings() {
             const limits = getBudgetLimits();
             const container = document.getElementById('budget-inputs');
-
-            const sym = getCurrencySymbol(appSettings.displayCurrency);
-            document.getElementById('budget-settings-title').innerText = `Budget Limits (${sym})`;
-
+            document.getElementById('budget-settings-title').innerText = `Budget Limits (${getCurrencySymbol(appSettings.displayCurrency)})`;
             container.innerHTML = '';
             Object.keys(limits).forEach(cat => {
                 if (cat !== 'Salary' && cat !== 'Business Sales') {
                     const displayLimit = convertCurrency(limits[cat], 'THB', appSettings.displayCurrency);
-
                     container.innerHTML += `<div style="margin-bottom:10px;"><label style="display:block; font-size:0.8rem; color:#6b7280;">${cat}</label><input type="number" id="limit-${cat}" value="${Math.round(displayLimit)}"></div>`;
                 }
             });
             document.getElementById('budget-settings-modal').style.display = 'flex';
         }
 
-        function closeBudgetSettings() {
-            document.getElementById('budget-settings-modal').style.display = 'none';
-        }
+        function closeBudgetSettings() { document.getElementById('budget-settings-modal').style.display = 'none'; }
 
         function saveBudgetSettings() {
             const newLimits = { ...getBudgetLimits() };
             Object.keys(newLimits).forEach(cat => {
                 const el = document.getElementById(`limit-${cat}`);
-                if (el) {
-                    newLimits[cat] = convertCurrency(Number(el.value), appSettings.displayCurrency, 'THB');
-                }
+                if (el) newLimits[cat] = convertCurrency(Number(el.value), appSettings.displayCurrency, 'THB');
             });
             localStorage.setItem('myBankBudgets', JSON.stringify(newLimits));
             closeBudgetSettings();
@@ -1329,9 +1030,7 @@
                         store.createIndex('synced', 'synced');
                         store.createIndex('timestamp', 'timestamp');
                     }
-                    if (!db.objectStoreNames.contains('syncQueue')) {
-                        db.createObjectStore('syncQueue', { keyPath: 'id', autoIncrement: true });
-                    }
+                    if (!db.objectStoreNames.contains('syncQueue')) db.createObjectStore('syncQueue', { keyPath: 'id', autoIncrement: true });
                 },
             });
         }
@@ -1340,91 +1039,45 @@
             push: async () => { syncManager.processQueue(); },
             processQueue: async () => {
                 if (!navigator.onLine) { updateStatus('Offline', 'offline'); return; }
-
                 const pending = await db.getAllFromIndex(STORE_NAME, 'synced', 0);
                 if (pending.length > 0) {
                     updateStatus('Syncing...', 'syncing');
                     try {
-                        await fetch(SCRIPT_URL, {
-                            method: "POST",
-                            body: JSON.stringify({
-                                key: userKey,
-                                action: 'APPEND_ROWS',
-                                user: currentUser,
-                                data: pending
-                            })
-                        });
+                        await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ key: userKey, action: 'APPEND_ROWS', user: currentUser, data: pending }) });
                         const tx = db.transaction(STORE_NAME, 'readwrite');
                         for (const item of pending) await tx.store.put({ ...item, synced: 1 });
                         await tx.done;
-                    } catch (e) {
-                        console.error("Append Failed", e);
-                        updateStatus('Sync Error', 'error');
-                        return;
-                    }
+                    } catch (e) { console.error("Append Failed", e); updateStatus('Sync Error', 'error'); return; }
                 }
-
                 const editJobs = await db.getAll('syncQueue');
                 if (editJobs.length > 0) {
                     updateStatus('Updating Edits...', 'syncing');
                     for (const job of editJobs) {
                         try {
-                            const res = await fetch(SCRIPT_URL, {
-                                method: "POST",
-                                body: JSON.stringify({
-                                    key: userKey,
-                                    action: job.type,
-                                    user: currentUser,
-                                    data: job.payload
-                                })
-                            });
+                            const res = await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ key: userKey, action: job.type, user: currentUser, data: job.payload }) });
                             const json = await res.json();
-                            if (json.status === 'success') {
-                                await db.delete('syncQueue', job.id);
-                            } else {
-                                console.error("Edit Failed on Server:", json);
-                                updateStatus('Edit Error', 'error');
-                            }
-                        } catch (e) {
-                            console.error("Edit Network Fail", e);
-                            updateStatus('Net Error', 'error');
-                        }
+                            if (json.status === 'success') await db.delete('syncQueue', job.id);
+                            else { console.error("Edit Failed on Server:", json); updateStatus('Edit Error', 'error'); }
+                        } catch (e) { console.error("Edit Network Fail", e); updateStatus('Net Error', 'error'); }
                     }
                 }
                 syncManager.pull();
             },
-
             pull: async () => {
                 if (!navigator.onLine) return;
                 try {
                     const res = await fetch(`${SCRIPT_URL}?key=${userKey}`);
                     const json = await res.json();
-
                     if (json.status === 'success') {
-                        if (json.data.exchange_rates) {
-                            EXCHANGE_RATES = json.data.exchange_rates.rates;
-                            localStorage.setItem('myBankRates', JSON.stringify(EXCHANGE_RATES));
-                        }
-                        if (json.data.category_config) {
-                            CATEGORY_CONFIG = json.data.category_config;
-                            localStorage.setItem('myBankConfig', JSON.stringify(CATEGORY_CONFIG));
-                            populateCategoryUI();
-                        }
+                        if (json.data.exchange_rates) { EXCHANGE_RATES = json.data.exchange_rates.rates; localStorage.setItem('myBankRates', JSON.stringify(EXCHANGE_RATES)); }
+                        if (json.data.category_config) { CATEGORY_CONFIG = json.data.category_config; localStorage.setItem('myBankConfig', JSON.stringify(CATEGORY_CONFIG)); populateCategoryUI(); }
                         const tx = db.transaction(STORE_NAME, 'readwrite');
-                        for (const row of json.data.recent_transactions) {
-                            await tx.store.put({ ...row, amount: Number(row.amount), synced: 1 });
-                        }
+                        for (const row of json.data.recent_transactions) await tx.store.put({ ...row, amount: Number(row.amount), synced: 1 });
                         await tx.done;
                         renderList();
                         updateStatus('Online', 'online');
-                    } else {
-                        console.error('Server Error:', json);
-                        updateStatus('Server Error', 'error');
-                    }
-                } catch (e) {
-                    console.error("Pull Failed:", e);
-                    updateStatus('Connection Fail', 'error');
-                }
+                    } else { console.error('Server Error:', json); updateStatus('Server Error', 'error'); }
+                } catch (e) { console.error("Pull Failed:", e); updateStatus('Connection Fail', 'error'); }
             }
         };
 
@@ -1434,19 +1087,16 @@
             db.get(STORE_NAME, uuid).then(tx => {
                 if (!tx) return alert("Transaction not found locally.");
                 document.getElementById('edit-uuid').value = tx.uuid;
-                const dateStr = new Date(tx.timestamp).toISOString().slice(0, 16);
-                document.getElementById('edit-date').value = dateStr;
+                document.getElementById('edit-date').value = new Date(tx.timestamp).toISOString().slice(0, 16);
                 const amtInput = document.getElementById('edit-amount');
                 amtInput.value = Math.abs(tx.amount);
                 amtInput.placeholder = `Amount (${tx.currency})`;
-                document.getElementById('edit-amount').value = Math.abs(tx.amount);
                 document.getElementById('edit-note').value = tx.note || '';
                 const catSelect = document.getElementById('edit-category');
                 catSelect.innerHTML = '';
                 Object.keys(CATEGORY_CONFIG).forEach(cat => {
                     const opt = document.createElement('option');
-                    opt.value = cat;
-                    opt.innerText = cat;
+                    opt.value = cat; opt.innerText = cat;
                     if (cat === tx.category) opt.selected = true;
                     catSelect.appendChild(opt);
                 });
@@ -1462,8 +1112,7 @@
             if (CATEGORY_CONFIG[mainCat]) {
                 CATEGORY_CONFIG[mainCat].subs.forEach(sub => {
                     const opt = document.createElement('option');
-                    opt.value = sub;
-                    opt.innerText = sub;
+                    opt.value = sub; opt.innerText = sub;
                     subSelect.appendChild(opt);
                 });
             }
@@ -1478,43 +1127,28 @@
             const amtRaw = parseFloat(document.getElementById('edit-amount').value);
             const note = document.getElementById('edit-note').value;
             if (!amtRaw) return alert("Invalid Amount");
+            
             const original = await db.get(STORE_NAME, uuid);
             const newCatType = getCategoryType(cat);
             const isExpense = (newCatType === 'EXPENSE' || newCatType === 'ASSET');
             const finalAmount = isExpense ? -Math.abs(amtRaw) : Math.abs(amtRaw);
+            
             const updatedTx = {
                 ...original,
                 timestamp: new Date(dateVal).toISOString(),
-                category: cat,
-                sub_category: sub,
-                amount: finalAmount,
-                note: note,
+                category: cat, sub_category: sub, amount: finalAmount, note: note,
             };
             await db.put(STORE_NAME, updatedTx);
             document.getElementById('edit-modal').style.display = 'none';
             renderList();
+            
             if (original.synced === 1) {
-                const job = {
-                    type: 'EDIT_TRANSACTION',
-                    payload: {
-                        id: uuid,
-                        date: updatedTx.timestamp,
-                        category: cat,
-                        sub_category: sub,
-                        amount: finalAmount,
-                        note: note
-                    },
-                    createdAt: Date.now()
-                };
+                const job = { type: 'EDIT_TRANSACTION', payload: { id: uuid, date: updatedTx.timestamp, category: cat, sub_category: sub, amount: finalAmount, note: note }, createdAt: Date.now() };
                 await db.put('syncQueue', job);
             }
             syncManager.processQueue();
         }
-        function toggleChartMode() {
-            showAllCashflow = document.getElementById('chart-toggle').checked;
-            renderChart(cachedTransactions);
-        }
+        function toggleChartMode() { showAllCashflow = document.getElementById('chart-toggle').checked; renderChart(cachedTransactions); }
     </script>
 </body>
-
 </html>
