@@ -13,17 +13,17 @@ const DEFAULT_EXCHANGE_RATES = { "THB": 1, "USD": 32, "MMK": 0.008 };
 
 // 3. CATEGORY CONFIGURATION
 const DEFAULT_CATEGORY_CONFIG = {
-    "Daily Living": { "type": "EXPENSE", "subs": ["Food", "Transport", "Utilities", "Household", "Family", "Donation", "Parent", "Baby", "IT Equipments and Accessories"] },
-            "Lifestyle": { "type": "EXPENSE", "subs": ["Clothes", "Cosmetic", "Entertainment", "Wearable"] },
-            "Agriculture": { "type": "EXPENSE", "subs": ["Agri Inputs", "Tools", "Labor"] },
-            "Assets & Savings": { "type": "ASSET", "subs": ["Gold", "Stocks", "Land", "Building", "Savings"] },
-            "Loans": { "type": "LIABILITY", "subs": ["Loan Received", "Loan Repayment", "Loan Interest"] },
-            "Income": { "type": "INCOME", "subs": ["Salary", "Bonus", "Other"] },
-            "Vehicle & Licenses": { "type": "EXPENSE", "subs": ["Motorcycle", "Car", "Motorcycle License Renewal", "Car License Renewal", "Driving License Renewal", "Fuel", "Insurance"] },
-            "Maintenance": { "type": "EXPENSE", "subs": ["Home", "Appliance Repair", "Car", "Motor Cycle", "Laptop", "Phone", "Other"] },
-            "Tech & Electronics": { "type": "EXPENSE", "subs": ["Laptop", "Peripherals", "Software", "Phone", "Tablet", "Other"] },
-            "Store Inventory": { "type": "ASSET", "subs": ["Computers", "Peripherals", "Printers & Office", "Networking & Parts"] },
-            "Business Sales": { "type": "INCOME", "subs": ["Project Payment", "Consulting Fee", "Product Sale"] }
+    "Daily Living": { "type": "EXPENSE", "subs": ["🍔 Food", "🚌 Transport", "⚡ Utilities", "🏠 Household", "👨‍👩‍👧‍👦 Family", "🤲 Donation", "👴 Parent", "👶 Baby", "💻 IT Equipments"] },
+    "Lifestyle": { "type": "EXPENSE", "subs": ["👕 Clothes", "💄 Cosmetic", "🍿 Entertainment", "⌚ Wearable"] },
+    "Agriculture": { "type": "EXPENSE", "subs": ["🌱 Agri Inputs", "🛠️ Tools", "🧑‍🌾 Labor"] },
+    "Assets & Savings": { "type": "ASSET", "subs": ["🥇 Gold", "📈 Stocks", "🏞️ Land", "🏢 Building", "💰 Savings"] },
+    "Loans": { "type": "LIABILITY", "subs": ["📥 Loan Received", "💸 Loan Repayment", "📉 Loan Interest"] },
+    "Income": { "type": "INCOME", "subs": ["💼 Salary", "🎁 Bonus", "💵 Other"] },
+    "Vehicle & Licenses": { "type": "EXPENSE", "subs": ["🏍️ Motorcycle", "🚗 Car", "🪪 Moto License", "🪪 Car License", "🪪 Driving License", "⛽ Fuel", "🛡️ Insurance"] },
+    "Maintenance": { "type": "EXPENSE", "subs": ["🏡 Home", "🔧 Appliance Repair", "🚗 Car", "🏍️ Motor Cycle", "💻 Laptop", "📱 Phone", "🛠️ Other"] },
+    "Tech & Electronics": { "type": "EXPENSE", "subs": ["💻 Laptop", "🖱️ Peripherals", "💿 Software", "📱 Phone", "📱 Tablet", "🔌 Other"] },
+    "Store Inventory": { "type": "ASSET", "subs": ["🖥️ Computers", "🖲️ Peripherals", "🖨️ Printers & Office", "🔌 Networking & Parts"] },
+    "Business Sales": { "type": "INCOME", "subs": ["📂 Project Payment", "🗣️ Consulting Fee", "🏷️ Product Sale"] }
 };
 
 // 4. BUDGETS
