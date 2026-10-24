@@ -33,6 +33,8 @@ Script Properties are server-side configuration supported by Google's [Propertie
 
 All data reads now use authenticated POST requests; opening the endpoint URL in a browser must return an error with no financial data. User identity in audit entries comes from the configured key, never from the posted `user` label. Authentication/authorization runs before accessing sheets or taking write locks.
 
+If login says **Key not recognized**, check these exact details without sharing the private key: the Script Property name is `MYBANK_ACCESS_KEYS`; its value is one JSON object like `{"64-character-hex-sha256-hash":"listed@example.com"}`; the value is the **hash printed by the generator**, while the app login receives the **private access key** printed separately. The email must exactly match an entry in `USER_DIRECTORY` in the deployed script. Also confirm that the app's `SCRIPT_URL` points to the deployment you updated. A fresh key has 43 characters. A backend error can indicate malformed JSON or missing server settings; inspect **Apps Script > Executions**. A connection error points to network, URL, deployment access, or browser access issues.
+
 ## 4. Verify and revoke old access
 
 - Open the deployed endpoint directly: it must say `Use authenticated POST` and expose no records.
