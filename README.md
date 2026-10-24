@@ -14,6 +14,7 @@
 * **💸 Zero Monthly Fees:** You bought the code. You own it forever.
 * **🌍 Multi-Currency:** Native support for **THB, USD, and MMK** with auto-conversion.
 * **📊 Smart Dashboard:** Interactive drill-down charts to visualize spending habits.
+* **🗂️ Guided Categories:** Category and Sub-Category are required, with category suggestions for income and expense entries.
 * **🔐 Server Access Control:** Private per-user access keys enforce read, edit and delete permissions on the backend. Cached local records are not encrypted.
 
 ---

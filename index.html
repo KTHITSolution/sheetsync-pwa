@@ -273,10 +273,10 @@
                 <button class="currency-btn active" onclick="setCurrency('THB')" id="btn-THB">THB</button>
             </div>
             <input type="number" id="inp-amount" placeholder="Amount" step="0.01">
-            <label style="font-size:0.8rem; color:#6b7280;">Category</label>
-            <select id="inp-category" onchange="updateSubCategories()"></select>
-            <label style="font-size:0.8rem; color:#6b7280;">Sub-Category</label>
-            <select id="inp-subcategory"></select>
+            <label for="inp-category" style="font-size:0.8rem; color:#6b7280;">Category *</label>
+            <select id="inp-category" onchange="updateSubCategories()" required></select>
+            <label for="inp-subcategory" style="font-size:0.8rem; color:#6b7280;">Sub-Category *</label>
+            <select id="inp-subcategory" required disabled></select>
             <input type="text" id="inp-note" placeholder="Note (Brand, details...)">
             <div class="form-actions">
                 <button class="btn btn-cancel" onclick="closeForm()">Cancel</button>
@@ -334,10 +334,10 @@
                 <h3>Edit Transaction</h3>
                 <input type="hidden" id="edit-uuid">
                 <input type="datetime-local" id="edit-date" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
-                <label style="font-size:0.8rem; color:#666;">Category</label>
-                <select id="edit-category" onchange="updateEditSubCategories()" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;"></select>
-                <label style="font-size:0.8rem; color:#666;">Sub-Category</label>
-                <select id="edit-subcategory" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;"></select>
+                <label for="edit-category" style="font-size:0.8rem; color:#666;">Category *</label>
+                <select id="edit-category" onchange="updateEditSubCategories()" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;"></select>
+                <label for="edit-subcategory" style="font-size:0.8rem; color:#666;">Sub-Category *</label>
+                <select id="edit-subcategory" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;"></select>
                 <input type="number" id="edit-amount" placeholder="Amount" step="0.01" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
                 <input type="text" id="edit-note" placeholder="Note" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
                 <div style="display:flex; gap:10px;">
@@ -544,38 +544,84 @@
             renderList();
         }
 
-        function populateCategoryUI() {
+        function addSelectPrompt(select, label) {
+            const prompt = document.createElement('option');
+            prompt.value = '';
+            prompt.textContent = label;
+            prompt.disabled = true;
+            prompt.selected = true;
+            select.appendChild(prompt);
+            select.value = '';
+        }
+
+        function appendCategoryOptions(select, label, categories) {
+            if (categories.length === 0) return;
+            const group = document.createElement('optgroup');
+            group.label = label;
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                group.appendChild(option);
+            });
+            select.appendChild(group);
+        }
+
+        function populateCategoryUI(reset = false) {
             const stored = localStorage.getItem('myBankConfig');
             if (stored) CATEGORY_CONFIG = JSON.parse(stored);
             const mainSelect = document.getElementById('inp-category');
-            const currentVal = mainSelect.value;
+            const currentVal = reset ? '' : mainSelect.value;
+            const currentSub = reset ? '' : document.getElementById('inp-subcategory').value;
             mainSelect.replaceChildren();
-            Object.keys(CATEGORY_CONFIG).forEach(cat => {
-                const opt = document.createElement('option');
-                opt.value = cat;
-                opt.innerText = cat;
-                mainSelect.appendChild(opt);
-            });
-            if (currentVal && CATEGORY_CONFIG[currentVal]) mainSelect.value = currentVal;
-            updateSubCategories();
+            addSelectPrompt(mainSelect, 'Select category');
+            const categories = Object.keys(CATEGORY_CONFIG);
+            const suggestedTypes = currentType === 'Income' ? ['INCOME'] : ['EXPENSE', 'ASSET'];
+            const suggested = categories.filter(cat => suggestedTypes.includes(CATEGORY_CONFIG[cat]?.type));
+            const others = categories.filter(cat => !suggested.includes(cat));
+            appendCategoryOptions(mainSelect, `Suggested for ${currentType}`, suggested);
+            appendCategoryOptions(mainSelect, 'Other categories', others);
+            if (currentVal && Object.prototype.hasOwnProperty.call(CATEGORY_CONFIG, currentVal)) mainSelect.value = currentVal;
+            updateSubCategories(currentSub);
         }
 
-        function updateSubCategories() {
+        function updateSubCategories(preselect = '') {
             const mainCat = document.getElementById('inp-category').value;
             const subSelect = document.getElementById('inp-subcategory');
             subSelect.replaceChildren();
-            if (CATEGORY_CONFIG[mainCat]) {
-                CATEGORY_CONFIG[mainCat].subs.forEach(sub => {
+            addSelectPrompt(subSelect, 'Select sub-category');
+            const subs = Object.prototype.hasOwnProperty.call(CATEGORY_CONFIG, mainCat) ? CATEGORY_CONFIG[mainCat]?.subs : null;
+            subSelect.disabled = !Array.isArray(subs) || subs.length === 0;
+            if (!subSelect.disabled) {
+                subs.forEach(sub => {
                     const opt = document.createElement('option');
                     opt.value = sub;
-                    opt.innerText = sub;
+                    opt.textContent = sub;
                     subSelect.appendChild(opt);
                 });
             }
+            if (preselect && Array.isArray(subs) && subs.includes(preselect)) subSelect.value = preselect;
+        }
+
+        function validateCategoryFields(categorySelect, subcategorySelect) {
+            const category = categorySelect.value;
+            const subs = Object.prototype.hasOwnProperty.call(CATEGORY_CONFIG, category) ? CATEGORY_CONFIG[category]?.subs : null;
+            if (!category || !Array.isArray(subs)) {
+                alert('Select a category.');
+                categorySelect.focus();
+                return false;
+            }
+            if (!subcategorySelect.value || !subs.includes(subcategorySelect.value)) {
+                alert('Select a sub-category for the chosen category.');
+                subcategorySelect.focus();
+                return false;
+            }
+            return true;
         }
 
         function openForm(type) {
             currentType = type;
+            populateCategoryUI(true);
             document.getElementById('form-title').innerText = `Add ${type}`;
             document.getElementById('input-panel').classList.add('active');
             document.getElementById('inp-amount').focus();
@@ -602,6 +648,7 @@
             if (!amountRaw) return alert("Enter amount");
             const category = document.getElementById('inp-category').value;
             const subcategory = document.getElementById('inp-subcategory').value;
+            if (!validateCategoryFields(document.getElementById('inp-category'), document.getElementById('inp-subcategory'))) return;
             const note = document.getElementById('inp-note').value;
             const amount = currentType === 'Expense' ? -Math.abs(amountRaw) : Math.abs(amountRaw);
             const rate = EXCHANGE_RATES[currentCurrency] || 1;
@@ -1145,9 +1192,10 @@
                 document.getElementById('edit-note').value = tx.note || '';
                 const catSelect = document.getElementById('edit-category');
                 catSelect.replaceChildren();
+                addSelectPrompt(catSelect, 'Select category');
                 Object.keys(CATEGORY_CONFIG).forEach(cat => {
                     const opt = document.createElement('option');
-                    opt.value = cat; opt.innerText = cat;
+                    opt.value = cat; opt.textContent = cat;
                     if (cat === tx.category) opt.selected = true;
                     catSelect.appendChild(opt);
                 });
@@ -1160,14 +1208,17 @@
             const mainCat = document.getElementById('edit-category').value;
             const subSelect = document.getElementById('edit-subcategory');
             subSelect.replaceChildren();
-            if (CATEGORY_CONFIG[mainCat]) {
-                CATEGORY_CONFIG[mainCat].subs.forEach(sub => {
+            addSelectPrompt(subSelect, 'Select sub-category');
+            const subs = Object.prototype.hasOwnProperty.call(CATEGORY_CONFIG, mainCat) ? CATEGORY_CONFIG[mainCat]?.subs : null;
+            subSelect.disabled = !Array.isArray(subs) || subs.length === 0;
+            if (!subSelect.disabled) {
+                subs.forEach(sub => {
                     const opt = document.createElement('option');
-                    opt.value = sub; opt.innerText = sub;
+                    opt.value = sub; opt.textContent = sub;
                     subSelect.appendChild(opt);
                 });
             }
-            if (preselect) subSelect.value = preselect;
+            if (preselect && Array.isArray(subs) && subs.includes(preselect)) subSelect.value = preselect;
         }
 
         async function saveEdit() {
@@ -1175,6 +1226,7 @@
             const dateVal = document.getElementById('edit-date').value;
             const cat = document.getElementById('edit-category').value;
             const sub = document.getElementById('edit-subcategory').value;
+            if (!validateCategoryFields(document.getElementById('edit-category'), document.getElementById('edit-subcategory'))) return;
             const amtRaw = parseFloat(document.getElementById('edit-amount').value);
             const note = document.getElementById('edit-note').value;
             if (!amtRaw) return alert("Invalid Amount");

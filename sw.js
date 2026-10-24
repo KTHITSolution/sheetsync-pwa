@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mybank-product-v4-safe-rendering';
+const CACHE_NAME = 'mybank-product-v5-required-categories';
 const ASSETS = [
   './',
   './index.html',
