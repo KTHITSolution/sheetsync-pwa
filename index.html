@@ -183,7 +183,7 @@
     <link rel="stylesheet" href="./theme.css">
 </head>
 
-<body>
+<body class="app-locked">
     <div id="login-overlay">
         <div class="login-card">
             <div class="login-emblem"><img src="./assets/icon-192.png" alt=""></div>
@@ -526,6 +526,7 @@
         function unlockApp(key) {
             userKey = key;
             document.getElementById('login-overlay').style.display = 'none';
+            document.body.classList.remove('app-locked');
             document.getElementById('login-pass').value = '';
             renderList();
             syncManager.push();

@@ -21,6 +21,7 @@ body {
   background: radial-gradient(circle at 80% -10%, #eee3ce 0, transparent 34%), var(--bg-color);
   color: var(--text-main);
 }
+body.app-locked { overflow: hidden; }
 button, input, select { font: inherit; }
 button { -webkit-tap-highlight-color: transparent; }
 button:focus-visible, input:focus-visible, select:focus-visible, .tx-item:focus-visible {
