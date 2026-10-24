@@ -121,7 +121,30 @@ run('revocation takes effect on the next request', () => {
   const revoked = { ...keyDirectory };
   delete revoked[sha256(tokens.admin)];
   configured = JSON.stringify(revoked);
+  const opensBefore = spreadsheetOpens;
+  const locksBefore = lockAttempts;
+  const rowsBefore = transactions.rows.length;
+  const auditBefore = audit.rows.length;
+  for (const action of actions) {
+    const data = action === 'APPEND_ROWS' ? [{
+      uuid: 'revoked', timestamp: '2026-10-24', user_tag: 'account_1',
+      category: 'Income', sub_category: 'Salary', amount: 1, note: 'blocked'
+    }] : { id: 'admin', date: '2026-10-24', category: 'Income',
+      sub_category: 'Salary', amount: 1, note: 'blocked' };
+    const result = post({ action, key: tokens.admin, data });
+    assert.equal(result.message, 'Unauthorized');
+    assert.equal(result.data, undefined);
+  }
+  assert.equal(spreadsheetOpens, opensBefore);
+  assert.equal(lockAttempts, locksBefore);
+  assert.equal(transactions.rows.length, rowsBefore);
+  assert.equal(audit.rows.length, auditBefore);
+
+  const rotatedKey = 'R'.repeat(43);
+  revoked[sha256(rotatedKey)] = keyDirectory[sha256(tokens.admin)];
+  configured = JSON.stringify(revoked);
   assert.equal(post({ action: 'READ', key: tokens.admin }).message, 'Unauthorized');
+  assert.equal(post({ action: 'READ', key: rotatedKey }).status, 'success');
   configured = JSON.stringify(keyDirectory);
 });
 run('malformed requests and unknown actions fail without sheet access', () => {
