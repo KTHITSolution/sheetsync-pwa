@@ -1,9 +1,11 @@
-const CACHE_NAME = 'mybank-product-v8-luxe';
+const CACHE_NAME = 'mybank-product-v9-icons';
 const ASSETS = [
   './',
   './index.html',
-  './theme.css?v=8',
+  './theme.css?v=9',
   './config.js',
+  './category-icons.js',
+  './assets/category-icons.svg',
   './manifest.json',
   './assets/icon-192.png',
   './assets/icon-512.png',

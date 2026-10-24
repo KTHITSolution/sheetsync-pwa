@@ -15,6 +15,7 @@ class Element {
     this.style = {};
     this.listeners = {};
     this.attributes = {};
+    this.classList = { add() {} };
     this._text = '';
   }
   set textContent(value) { this._text = String(value); }
@@ -30,6 +31,7 @@ class Element {
 const nodes = new Map();
 const document = {
   createElement: tag => new Element(tag),
+  createElementNS: (_, tag) => new Element(tag),
   getElementById: id => nodes.get(id)
 };
 const byId = id => { const node = new Element('div'); nodes.set(id, node); return node; };
@@ -43,6 +45,7 @@ const context = vm.createContext({ document, openEditModal: id => edits.push(id)
   convertCurrency: n => n,
   appSettings: { displayCurrency: 'THB' },
   getCurrencySymbol: () => '฿' });
+vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'category-icons.js'), 'utf8'), context);
 function loadFunction(name, nextName) {
   const start = script.indexOf(`function ${name}(`);
   const end = script.indexOf(nextName, start);
@@ -60,7 +63,8 @@ const row = context.createTransactionItem({
 assert.equal(row.tag, 'li');
 assert.match(row.textContent, /<img src=x onerror=/);
 assert.match(row.textContent, /<svg onload=/);
-assert.deepEqual(row.children.map(child => child.tag), ['div', 'div']);
+assert.deepEqual(row.children.map(child => child.tag), ['svg', 'div', 'div']);
+assert.equal(row.children[0].children[0].attributes.href, './assets/category-icons.svg#circle-help');
 assert.equal(typeof row.listeners.click, 'function');
 assert.equal(row.attributes.role, 'button');
 row.listeners.click();

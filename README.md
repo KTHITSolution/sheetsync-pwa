@@ -65,6 +65,7 @@ We have documented the full system architecture, algorithms, and data structures
 | `backend.gs` | The server-side script that runs inside Google Sheets. |
 | `config.js` | Configuration file containing your API URL and settings. |
 | `sw.js` | Service Worker that powers Offline Mode. |
+| `category-icons.js` and `assets/category-icons.svg` | Locally bundled outline icons for categories and sub-categories. |
 | `manifest.json`| Allows the app to be installed on Android/iOS. |
 | `TECHNICAL.md` | Detailed system architecture and algorithm breakdown. |
 
@@ -78,6 +79,8 @@ We have documented the full system architecture, algorithms, and data structures
 * ❌ **Prohibited:** Reselling, redistributing, or sub-licensing this source code.
 
 *Built with 💙 and Google Sheets.*
+
+Category and sub-category outlines are from [Lucide](https://lucide.dev/), bundled under its ISC license in [`assets/LUCIDE-LICENSE.txt`](assets/LUCIDE-LICENSE.txt).
 
 > ## 🛠️ Under the Hood
 > Curious about how My Bank handles offline syncing and security?

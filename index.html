@@ -15,6 +15,7 @@
     <script src="./idb.js"></script>
     <script src="./chart.js"></script>
     <script src="config.js"></script>
+    <script src="./category-icons.js"></script>
 
     <style>
         :root {
@@ -180,7 +181,7 @@
         .privacy-icon { font-size: 1.2rem; cursor: pointer; opacity: 0.7; transition: opacity 0.2s; }
         .privacy-icon:hover { opacity: 1; }
     </style>
-    <link rel="stylesheet" href="./theme.css?v=8">
+    <link rel="stylesheet" href="./theme.css?v=9">
 </head>
 
 <body class="app-locked">
@@ -293,8 +294,10 @@
             <input type="number" id="inp-amount" placeholder="Amount" step="0.01">
             <label for="inp-category" style="font-size:0.8rem; color:#6b7280;">Category *</label>
             <select id="inp-category" onchange="updateSubCategories()" required></select>
+            <div id="inp-category-icons" class="icon-choice-rail" aria-label="Choose category"></div>
             <label for="inp-subcategory" style="font-size:0.8rem; color:#6b7280;">Sub-Category *</label>
-            <select id="inp-subcategory" required disabled></select>
+            <select id="inp-subcategory" onchange="syncIconChoiceSelection(this)" required disabled></select>
+            <div id="inp-subcategory-icons" class="icon-choice-rail" aria-label="Choose sub-category"></div>
             <input type="text" id="inp-note" placeholder="Note (Brand, details...)">
             <div class="form-actions">
                 <button class="btn btn-cancel" onclick="closeForm()">Cancel</button>
@@ -356,8 +359,10 @@
                 <input type="datetime-local" id="edit-date" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
                 <label for="edit-category" style="font-size:0.8rem; color:#666;">Category *</label>
                 <select id="edit-category" onchange="updateEditSubCategories()" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;"></select>
+                <div id="edit-category-icons" class="icon-choice-rail" aria-label="Choose category"></div>
                 <label for="edit-subcategory" style="font-size:0.8rem; color:#666;">Sub-Category *</label>
-                <select id="edit-subcategory" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;"></select>
+                <select id="edit-subcategory" onchange="syncIconChoiceSelection(this)" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;"></select>
+                <div id="edit-subcategory-icons" class="icon-choice-rail" aria-label="Choose sub-category"></div>
                 <input type="number" id="edit-amount" placeholder="Amount" step="0.01" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
                 <input type="text" id="edit-note" placeholder="Note" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
                 <div style="display:flex; gap:10px;">
@@ -600,6 +605,40 @@
             select.appendChild(group);
         }
 
+        function syncIconChoiceSelection(select) {
+            const rail = document.getElementById(`${select.id}-icons`);
+            if (!rail) return;
+            rail.querySelectorAll('button').forEach(button => {
+                const selected = button.dataset.value === select.value;
+                button.classList.toggle('selected', selected);
+                button.setAttribute('aria-pressed', String(selected));
+            });
+        }
+
+        function renderIconChoices(select, values, isSubcategory = false) {
+            const rail = document.getElementById(`${select.id}-icons`);
+            if (!rail) return;
+            rail.replaceChildren();
+            rail.hidden = values.length === 0;
+            values.forEach(value => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'icon-choice';
+                button.dataset.value = value;
+                button.setAttribute('aria-label', `Choose ${categoryDisplayName(value)}`);
+                button.append(createCategoryIcon(value, isSubcategory));
+                const label = document.createElement('span');
+                label.textContent = categoryDisplayName(value);
+                button.appendChild(label);
+                button.addEventListener('click', () => {
+                    select.value = value;
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+                rail.appendChild(button);
+            });
+            syncIconChoiceSelection(select);
+        }
+
         function populateCategoryUI(reset = false) {
             const stored = localStorage.getItem('myBankConfig');
             if (stored) CATEGORY_CONFIG = JSON.parse(stored);
@@ -615,6 +654,7 @@
             appendCategoryOptions(mainSelect, `Suggested for ${currentType}`, suggested);
             appendCategoryOptions(mainSelect, 'Other categories', others);
             if (currentVal && Object.prototype.hasOwnProperty.call(CATEGORY_CONFIG, currentVal)) mainSelect.value = currentVal;
+            renderIconChoices(mainSelect, [...suggested, ...others]);
             updateSubCategories(currentSub);
         }
 
@@ -629,11 +669,13 @@
                 subs.forEach(sub => {
                     const opt = document.createElement('option');
                     opt.value = sub;
-                    opt.textContent = sub;
+                    opt.textContent = categoryDisplayName(sub);
                     subSelect.appendChild(opt);
                 });
             }
             if (preselect && Array.isArray(subs) && subs.includes(preselect)) subSelect.value = preselect;
+            renderIconChoices(subSelect, Array.isArray(subs) ? subs : [], true);
+            syncIconChoiceSelection(document.getElementById('inp-category'));
         }
 
         function validateCategoryFields(categorySelect, subcategorySelect) {
@@ -838,6 +880,8 @@
 
             const left = document.createElement('div');
             left.className = 'tx-left';
+            const categoryGlyph = createCategoryIcon(tx.category);
+            categoryGlyph.classList.add('tx-category-icon');
             const category = document.createElement('span');
             category.className = 'tx-cat';
             category.textContent = tx.category;
@@ -849,7 +893,10 @@
             }
             const meta = document.createElement('span');
             meta.className = 'tx-meta';
-            meta.textContent = `${tx.sub_category} • ${symbol}${Math.abs(tx.amount).toLocaleString()}`;
+            meta.append(createCategoryIcon(tx.sub_category, true));
+            const metaText = document.createElement('span');
+            metaText.textContent = `${categoryDisplayName(tx.sub_category)} • ${symbol}${Math.abs(tx.amount).toLocaleString()}`;
+            meta.appendChild(metaText);
             left.append(category, meta);
 
             const right = document.createElement('div');
@@ -862,7 +909,7 @@
             status.className = 'tx-icon';
             status.textContent = icon;
             right.append(amount, status);
-            li.append(left, right);
+            li.append(categoryGlyph, left, right);
             return li;
         }
 
@@ -1107,7 +1154,11 @@
                 const header = document.createElement('div');
                 header.className = 'budget-header';
                 const name = document.createElement('span');
-                name.textContent = cat;
+                name.className = 'budget-name';
+                name.append(createCategoryIcon(cat));
+                const nameText = document.createElement('span');
+                nameText.textContent = cat;
+                name.appendChild(nameText);
                 const amounts = document.createElement('span');
                 amounts.textContent = `${Math.round(spent).toLocaleString()} / ${Math.round(limitDisp).toLocaleString()}`;
                 header.append(name, amounts);
@@ -1258,6 +1309,7 @@
                     catSelect.appendChild(opt);
                 });
                 updateEditSubCategories(tx.sub_category);
+                renderIconChoices(catSelect, Object.keys(CATEGORY_CONFIG));
                 document.getElementById('edit-modal').style.display = 'flex';
             });
         }
@@ -1272,11 +1324,13 @@
             if (!subSelect.disabled) {
                 subs.forEach(sub => {
                     const opt = document.createElement('option');
-                    opt.value = sub; opt.textContent = sub;
+                    opt.value = sub; opt.textContent = categoryDisplayName(sub);
                     subSelect.appendChild(opt);
                 });
             }
             if (preselect && Array.isArray(subs) && subs.includes(preselect)) subSelect.value = preselect;
+            renderIconChoices(subSelect, Array.isArray(subs) ? subs : [], true);
+            syncIconChoiceSelection(document.getElementById('edit-category'));
         }
 
         async function saveEdit() {
