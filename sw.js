@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mybank-product-v2'; // <--- BUMPED VERSION
+const CACHE_NAME = 'mybank-product-v3-auth';
 const ASSETS = [
   './',
   './index.html',

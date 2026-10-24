@@ -26,7 +26,7 @@ graph TD
     
     %% Backend Processing (Google Cloud)
     subgraph Google Sheets Backend (Server)
-        J --> K{Verify APP_SECRET}
+        J --> K{Verify private key hash and server role}
         K -->|Fail| L((Reject: Access Denied))
         K -->|Pass| M[Request Script Lock <br>LockService.tryLock]
         

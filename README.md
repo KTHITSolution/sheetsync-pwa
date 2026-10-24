@@ -14,7 +14,7 @@
 * **💸 Zero Monthly Fees:** You bought the code. You own it forever.
 * **🌍 Multi-Currency:** Native support for **THB, USD, and MMK** with auto-conversion.
 * **📊 Smart Dashboard:** Interactive drill-down charts to visualize spending habits.
-* **🔐 Secure Login:** Password-protected access prevents unauthorized viewing of your sensitive data.
+* **🔐 Server Access Control:** Private per-user access keys enforce read, edit and delete permissions on the backend. Cached local records are not encrypted.
 
 ---
 
@@ -25,13 +25,13 @@
 ### 1. Backend Setup (Google Sheets)
 1.  Open the **Master Database Link** (provided in your purchase email) and make a copy to your Google Drive.
 2.  Open **Extensions > Apps Script**.
-3.  **Critical:** Change the `APP_SECRET` variable to your own unique password.
-4.  Deploy the script as a **Web App** (Execute as: `Me`, Access: `Anyone`).
+3.  **Critical:** Follow [authenticated backend deployment](DEPLOYMENT.md) to create private user keys, configure `MYBANK_ACCESS_KEYS` in Script Properties, and set user roles. Never publish a private key in `config.js`.
+4.  Deploy the authenticated script as a **Web App** following that guide. Replace/archive any older insecure deployments.
 5.  Copy the **Web App URL**.
 
 ### 2. Frontend Setup (The App)
 1.  Go to our [Setup Website](https://your-website-url.com) (or open the User Guide).
-2.  Use the **Config Generator** to create your `config.js` file using your Web App URL.
+2.  Set `SCRIPT_URL` in `config.js` to your authenticated Web App URL. The older Config Generator and PDF guide do not describe the new authentication setup; use the deployment guide above.
 3.  Place the `config.js` file into this folder.
 
 ### 3. Go Live

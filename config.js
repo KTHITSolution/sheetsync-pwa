@@ -5,8 +5,7 @@
 // 1. BACKEND CONNECTION
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyWuhNbu9joyq_Mqo01BKyy6ztobi2YuAFS4dR8xNIzYwUzjGWUrGw7XeqhUnsa3BTE/exec'; 
 
-// 🔒 SECURITY KEY
-const APP_SECRET = 'p@ssw0rd'; 
+// Private access keys belong in the login field, NEVER in public configuration.
 
 // 2. SETTINGS
 const DEFAULT_EXCHANGE_RATES = { "THB": 1, "USD": 32, "MMK": 0.008 };

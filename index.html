@@ -186,7 +186,7 @@
     <div id="login-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#2563eb; z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white;">
         <img src="./assets/icon-192.png" style="width:80px; margin-bottom:20px; border-radius:15px; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
         <h2 style="margin:0 0 20px 0;">My Bank</h2>
-        <input type="password" id="login-pass" placeholder="Enter App Password" style="padding:15px; border-radius:10px; border:none; width:80%; max-width:250px; text-align:center; font-size:1.2rem; color:#333;">
+        <input type="password" id="login-pass" placeholder="Enter Private Access Key" autocomplete="off" style="padding:15px; border-radius:10px; border:none; width:80%; max-width:250px; text-align:center; font-size:1.2rem; color:#333;">
         <button id="login-btn" onclick="attemptLogin()" style="margin-top:20px; padding:12px 30px; background:white; color:#2563eb; border:none; border-radius:30px; font-weight:bold; font-size:1rem; cursor:pointer;">Unlock</button>
         <p id="login-msg" style="margin-top:20px; font-size:0.9rem; opacity:0.8;"></p>
     </div>
@@ -443,53 +443,44 @@
         }
 
         // --- AUTHENTICATION LOGIC ---
-        let storedKey = localStorage.getItem('myBankKey');
-        let sessionActive = sessionStorage.getItem('myBankSession');
-        let userKey = storedKey || '';
+        // Keep the private key in memory and remove credentials from older versions.
+        localStorage.removeItem('myBankKey');
+        sessionStorage.removeItem('myBankSession');
+        let userKey = '';
 
-        if (storedKey && sessionActive === 'true') {
-            document.getElementById('login-overlay').style.display = 'none';
-        } else if (storedKey) {
-            document.getElementById('login-pass').placeholder = "Enter Password to Unlock";
-            document.getElementById('login-btn').innerText = "Unlock (Offline Ready)";
+        async function apiRequest(action, data, key = userKey) {
+            if (!key) throw new Error('Enter your private access key first.');
+            const res = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ key, action, data })
+            });
+            if (!res.ok) throw new Error('Server request failed.');
+            const json = await res.json();
+            if (json.status !== 'success') throw new Error(json.message || 'Server request failed.');
+            return json;
         }
 
         async function attemptLogin() {
-            const input = document.getElementById('login-pass').value;
+            const input = document.getElementById('login-pass').value.trim();
             const msg = document.getElementById('login-msg');
 
             if (!input) return;
             msg.innerText = "Verifying...";
 
-            if (storedKey && input === storedKey) {
-                unlockApp(input);
-                return;
-            }
-
             if (!navigator.onLine) {
-                msg.innerText = "⚠️ Offline: Cannot verify new password.";
+                msg.innerText = "Connect to verify your access key.";
                 return;
             }
 
             try {
-                const res = await fetch(`${SCRIPT_URL}?key=${input}`);
-                const json = await res.json();
-
-                if (json.status === 'success') {
-                    localStorage.setItem('myBankKey', input);
-                    storedKey = input;
-                    unlockApp(input);
-                } else {
-                    msg.innerText = "⛔ Wrong Password";
-                }
+                await apiRequest('READ', undefined, input);
+                unlockApp(input);
             } catch (e) {
-                console.error(e);
-                msg.innerText = "⚠️ Connection Error.";
+                msg.innerText = 'Access denied or server unavailable. Check your key and deployment.';
             }
         }
 
         function unlockApp(key) {
-            sessionStorage.setItem('myBankSession', 'true');
             userKey = key;
             document.getElementById('login-overlay').style.display = 'none';
             document.getElementById('login-pass').value = '';
@@ -1038,12 +1029,13 @@
         const syncManager = {
             push: async () => { syncManager.processQueue(); },
             processQueue: async () => {
+                if (!userKey) return;
                 if (!navigator.onLine) { updateStatus('Offline', 'offline'); return; }
                 const pending = await db.getAllFromIndex(STORE_NAME, 'synced', 0);
                 if (pending.length > 0) {
                     updateStatus('Syncing...', 'syncing');
                     try {
-                        await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ key: userKey, action: 'APPEND_ROWS', user: currentUser, data: pending }) });
+                        await apiRequest('APPEND_ROWS', pending);
                         const tx = db.transaction(STORE_NAME, 'readwrite');
                         for (const item of pending) await tx.store.put({ ...item, synced: 1 });
                         await tx.done;
@@ -1054,8 +1046,7 @@
                     updateStatus('Updating Edits...', 'syncing');
                     for (const job of editJobs) {
                         try {
-                            const res = await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ key: userKey, action: job.type, user: currentUser, data: job.payload }) });
-                            const json = await res.json();
+                            const json = await apiRequest(job.type, job.payload);
                             if (json.status === 'success') await db.delete('syncQueue', job.id);
                             else { console.error("Edit Failed on Server:", json); updateStatus('Edit Error', 'error'); }
                         } catch (e) { console.error("Edit Network Fail", e); updateStatus('Net Error', 'error'); }
@@ -1064,10 +1055,9 @@
                 syncManager.pull();
             },
             pull: async () => {
-                if (!navigator.onLine) return;
+                if (!navigator.onLine || !userKey) return;
                 try {
-                    const res = await fetch(`${SCRIPT_URL}?key=${userKey}`);
-                    const json = await res.json();
+                    const json = await apiRequest('READ');
                     if (json.status === 'success') {
                         if (json.data.exchange_rates) { EXCHANGE_RATES = json.data.exchange_rates.rates; localStorage.setItem('myBankRates', JSON.stringify(EXCHANGE_RATES)); }
                         if (json.data.category_config) { CATEGORY_CONFIG = json.data.category_config; localStorage.setItem('myBankConfig', JSON.stringify(CATEGORY_CONFIG)); populateCategoryUI(); }
