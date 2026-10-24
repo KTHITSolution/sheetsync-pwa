@@ -1252,10 +1252,13 @@
                 if (pending.length > 0) {
                     updateStatus('Syncing...', 'syncing');
                     try {
-                        await apiRequest('APPEND_ROWS', pending);
-                        const tx = db.transaction(STORE_NAME, 'readwrite');
-                        for (const item of pending) await tx.store.put({ ...item, synced: 1 });
-                        await tx.done;
+                        for (let offset = 0; offset < pending.length; offset += 100) {
+                            const batch = pending.slice(offset, offset + 100);
+                            await apiRequest('APPEND_ROWS', batch);
+                            const tx = db.transaction(STORE_NAME, 'readwrite');
+                            for (const item of batch) await tx.store.put({ ...item, synced: 1 });
+                            await tx.done;
+                        }
                     } catch (e) { console.error("Append Failed", e); updateStatus('Sync Error', 'error'); return; }
                 }
                 const editJobs = await db.getAll('syncQueue');

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mybank-product-v9-icons';
+const CACHE_NAME = 'mybank-product-v10-formula-safety';
 const ASSETS = [
   './',
   './index.html',

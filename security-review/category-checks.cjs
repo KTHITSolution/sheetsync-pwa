@@ -37,6 +37,7 @@ const context = vm.createContext({
   db: { put: async (_, tx) => saved.push(tx), get: async () => { dbGets++; return { synced: 0 }; } },
   closeForm() {}, renderList() {}, syncManager: { push() {}, processQueue() {} }
 });
+vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'category-icons.js'), 'utf8'), context);
 function loadFunction(name, nextName) {
   let start = script.indexOf(`async function ${name}(`);
   if (start < 0) start = script.indexOf(`function ${name}(`);

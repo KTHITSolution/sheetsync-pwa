@@ -25,6 +25,57 @@ function createJSONOutput(data) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+// Sheets interprets leading '=' as a formula. Prefix formula-like text with
+// an apostrophe so it is entered as literal cell text, including on audit rows.
+function sheetLiteral(value) {
+  if (typeof value !== 'string') return value;
+  return /^[\s\u0000-\u001f\u200b-\u200d\u2060\ufeff]*[=+\-@]/u.test(value) ? "'" + value : value;
+}
+
+function requireText(value, maxLength, allowEmpty) {
+  if (typeof value !== 'string' || value.length > maxLength || (!allowEmpty && !value.trim()) ||
+      /[\u0000-\u0008\u000b-\u001f\u007f]/u.test(value)) throw new Error('Invalid transaction data');
+  return value;
+}
+
+function requireId(value) {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(value)) {
+    throw new Error('Invalid transaction data');
+  }
+  return value;
+}
+
+function requireDate(value) {
+  requireText(value, 35, false);
+  if (!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})?)?$/.test(value) ||
+      !Number.isFinite(Date.parse(value))) throw new Error('Invalid transaction data');
+  return value;
+}
+
+function requireNumber(value, positive) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || (positive ? value <= 0 : value === 0) ||
+      Math.abs(value) > 1e15) throw new Error('Invalid transaction data');
+  return value;
+}
+
+function validateTransactionData(data, editing) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Invalid transaction data');
+  const id = requireId(editing ? data.id : data.uuid);
+  const date = requireDate(editing ? data.date : data.timestamp);
+  const category = requireText(data.category, 100, false);
+  const subCategory = requireText(data.sub_category, 100, false);
+  const note = requireText(data.note == null ? '' : data.note, 1000, true);
+  const amount = requireNumber(data.amount, false);
+  const currency = data.currency == null ? 'THB' : data.currency;
+  if (!['THB', 'USD', 'MMK'].includes(currency)) throw new Error('Invalid transaction data');
+  const fxRate = requireNumber(data.fx_rate == null ? 1 : data.fx_rate, true);
+  if (editing) return { id, date, category, sub_category: subCategory, note, amount, currency, fx_rate: fxRate };
+  const userTag = requireText(data.user_tag, 32, false);
+  if (!['account_1', 'account_2'].includes(userTag)) throw new Error('Invalid transaction data');
+  return { uuid: id, timestamp: date, user_tag: userTag, category, sub_category: subCategory,
+    note, amount, currency, fx_rate: fxRate };
+}
+
 // --- SERVICES ---
 
 class AuthService {
@@ -79,7 +130,8 @@ class SheetRepository {
   appendBulk(rowsArray) {
     if (rowsArray.length === 0) return 0;
     const lastRow = this.sheet.getLastRow();
-    this.sheet.getRange(lastRow + 1, 1, rowsArray.length, 10).setValues(rowsArray);
+    this.sheet.getRange(lastRow + 1, 1, rowsArray.length, 10)
+      .setValues(rowsArray.map(row => row.map(sheetLiteral)));
     return rowsArray.length;
   }
 
@@ -92,13 +144,13 @@ class SheetRepository {
   }
 
   updateRow(rowIndex, data) {
-    this.sheet.getRange(rowIndex, 2).setValue(data.date);
-    this.sheet.getRange(rowIndex, 4).setValue(data.category);
-    this.sheet.getRange(rowIndex, 5).setValue(data.sub_category);
+    this.sheet.getRange(rowIndex, 2).setValue(sheetLiteral(data.date));
+    this.sheet.getRange(rowIndex, 4).setValue(sheetLiteral(data.category));
+    this.sheet.getRange(rowIndex, 5).setValue(sheetLiteral(data.sub_category));
     this.sheet.getRange(rowIndex, 6).setValue(data.amount);
-    this.sheet.getRange(rowIndex, 7).setValue(data.note);
+    this.sheet.getRange(rowIndex, 7).setValue(sheetLiteral(data.note));
     this.sheet.getRange(rowIndex, 8).setValue(new Date().toISOString());
-    this.sheet.getRange(rowIndex, 9).setValue(data.currency);
+    this.sheet.getRange(rowIndex, 9).setValue(sheetLiteral(data.currency));
     this.sheet.getRange(rowIndex, 10).setValue(data.fx_rate);
   }
   // [NEW] Helper to get raw data before deletion
@@ -122,16 +174,19 @@ class FinanceService {
   }
 
   addTransactions(rawRows) {
-    // ... [Existing Idempotency Logic] ...
+    if (!Array.isArray(rawRows) || rawRows.length < 1 || rawRows.length > 100) {
+      throw new Error('Invalid transaction data');
+    }
+    const checkedRows = rawRows.map(row => validateTransactionData(row, false));
     const existingIds = this.repo.getExistingUUIDs();
     const serverTime = new Date().toISOString();
-    const newRows = rawRows.filter(r => !existingIds.has(String(r.uuid)));
+    const newRows = checkedRows.filter(r => !existingIds.has(r.uuid));
 
     if (newRows.length === 0) return 0;
 
     const values = newRows.map(r => [
       r.uuid, r.timestamp, r.user_tag, r.category, r.sub_category,
-      r.amount, r.note, serverTime, r.currency || 'THB', r.fx_rate || 1
+      r.amount, r.note, serverTime, r.currency, r.fx_rate
     ]);
 
     // 1. Persist
@@ -147,30 +202,33 @@ class FinanceService {
   }
 
   editTransaction(editData) {
-    const rowIndex = this.repo.findRowIndexById(editData.id);
+    const id = requireId(editData && editData.id);
+    const rowIndex = this.repo.findRowIndexById(id);
     if (rowIndex === -1) throw new Error("Transaction ID not found.");
+    const currentRow = this.repo.getRowData(rowIndex);
+    const safeData = validateTransactionData({
+      ...editData,
+      currency: editData.currency == null ? currentRow[8] || 'THB' : editData.currency,
+      fx_rate: editData.fx_rate == null ? currentRow[9] || 1 : editData.fx_rate
+    }, true);
 
     // 1. Update
-    const safeData = {
-      ...editData,
-      currency: editData.currency || 'THB',
-      fx_rate: editData.fx_rate || 1
-    };
     this.repo.updateRow(rowIndex, safeData);
 
     // 2. [AUDIT] Log Update
     // We log exactly what critical fields changed (Amount/Category)
-    this.audit.log(this.user, 'UPDATE', editData.id, {
+    this.audit.log(this.user, 'UPDATE', safeData.id, {
       newAmount: safeData.amount,
       newCategory: safeData.category,
       note: "Edited via App"
     });
 
-    return editData.id;
+    return safeData.id;
   }
 
   // [NEW] Delete Logic with Backup
   deleteTransaction(uuid) {
+    requireId(uuid);
     const rowIndex = this.repo.findRowIndexById(uuid);
     if (rowIndex === -1) throw new Error("ID not found for deletion.");
 
@@ -209,12 +267,8 @@ class AuditService {
       const detailString = typeof details === 'object' ? JSON.stringify(details) : String(details);
 
       this.sheet.appendRow([
-        timestamp,
-        userEmail,
-        action,
-        txId,
-        detailString
-      ]);
+        timestamp, userEmail, action, txId, detailString
+      ].map(sheetLiteral));
       // Force save to ensure log persists even if subsequent code fails
       SpreadsheetApp.flush();
     } catch (e) {
@@ -230,6 +284,9 @@ function doPost(e) {
   let stage = 'request parsing';
 
   try {
+    if (!e || !e.postData || typeof e.postData.contents !== 'string' || e.postData.contents.length > 200000) {
+      throw new Error('Invalid request');
+    }
     const payload = JSON.parse(e.postData.contents);
     stage = 'authentication';
     const auth = new AuthService(payload.key);
