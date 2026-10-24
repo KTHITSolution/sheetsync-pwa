@@ -7,9 +7,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const iconSource = read('category-icons.js');
 const lookup = vm.runInNewContext(iconSource + '; ({ categoryIconName, categoryDisplayName })');
 const defaults = vm.runInNewContext(read('config.js') + '; DEFAULT_CATEGORY_CONFIG');
-const backendMatch = read('backend.gs').match(/const CATEGORIES = (\{[\s\S]*?\});\s*return createJSONOutput/);
-assert.ok(backendMatch, 'backend categories found');
-const backend = vm.runInNewContext(`(${backendMatch[1]})`);
+const backend = vm.runInNewContext(read('backend.gs') + '; getCategoryConfig()');
 const symbols = new Set([...read('assets/category-icons.svg').matchAll(/<symbol id="([^"]+)"/g)].map(match => match[1]));
 
 for (const config of [defaults, backend]) {

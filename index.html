@@ -181,7 +181,7 @@
         .privacy-icon { font-size: 1.2rem; cursor: pointer; opacity: 0.7; transition: opacity 0.2s; }
         .privacy-icon:hover { opacity: 1; }
     </style>
-    <link rel="stylesheet" href="./theme.css?v=9">
+    <link rel="stylesheet" href="./theme.css?v=11">
 </head>
 
 <body class="app-locked">
@@ -195,10 +195,12 @@
             <input type="password" id="login-pass" placeholder="Enter your access key" autocomplete="off" spellcheck="false">
             <button id="login-btn" type="button" onclick="attemptLogin()">Unlock dashboard <span aria-hidden="true">↗</span></button>
             <p id="login-msg" role="status" aria-live="polite"></p>
+            <p class="local-data-note">Offline records stay on this device until erased. Use a trusted device.</p>
+            <button id="clear-local-btn" class="local-data-button" type="button" onclick="eraseLocalData()">Erase saved data on this device</button>
         </div>
     </div>
 
-    <div id="app">
+    <div id="app" inert>
 
         <div id="profile-settings-modal">
             <div class="settings-content">
@@ -239,6 +241,7 @@
                     <div><span class="brand-caption">PRIVATE FINANCE</span><strong>My Bank</strong></div>
                 </div>
                 <div class="topbar-controls">
+                    <button class="privacy-icon lock-button" type="button" onclick="signOut()" title="Sign out and lock" aria-label="Sign out and lock dashboard">Lock</button>
                     <button class="privacy-icon" type="button" onclick="openProfileSettings()" title="Profile settings" aria-label="Profile settings">⚙</button>
                     <button class="privacy-icon" type="button" onclick="togglePrivacy()" id="privacy-btn" title="Hide balances" aria-label="Toggle balance privacy">👁️</button>
                 </div>
@@ -298,7 +301,7 @@
             <label for="inp-subcategory" style="font-size:0.8rem; color:#6b7280;">Sub-Category *</label>
             <select id="inp-subcategory" onchange="syncIconChoiceSelection(this)" required disabled></select>
             <div id="inp-subcategory-icons" class="icon-choice-rail" aria-label="Choose sub-category"></div>
-            <input type="text" id="inp-note" placeholder="Note (Brand, details...)">
+            <input type="text" id="inp-note" placeholder="Note (Brand, details...)" maxlength="1000">
             <div class="form-actions">
                 <button class="btn btn-cancel" onclick="closeForm()">Cancel</button>
                 <button class="btn btn-save" onclick="saveTransaction()">Save</button>
@@ -364,7 +367,7 @@
                 <select id="edit-subcategory" onchange="syncIconChoiceSelection(this)" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;"></select>
                 <div id="edit-subcategory-icons" class="icon-choice-rail" aria-label="Choose sub-category"></div>
                 <input type="number" id="edit-amount" placeholder="Amount" step="0.01" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
-                <input type="text" id="edit-note" placeholder="Note" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
+                <input type="text" id="edit-note" placeholder="Note" maxlength="1000" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px;">
                 <div style="display:flex; gap:10px;">
                     <button onclick="document.getElementById('edit-modal').style.display='none'" class="btn btn-cancel">Cancel</button>
                     <button onclick="saveEdit()" class="btn btn-save">Save Changes</button>
@@ -474,17 +477,93 @@
         localStorage.removeItem('myBankKey');
         sessionStorage.removeItem('myBankSession');
         let userKey = '';
+        const IDLE_LOCK_MS = 15 * 60 * 1000;
+        const MAX_UNLOCK_MS = 8 * 60 * 60 * 1000;
+        let lastActivity = 0;
+        let unlockedAt = 0;
+        let sessionGeneration = 0;
+        const activeRequests = new Set();
+
+        function hasActiveSession() {
+            if (!userKey) return false;
+            const now = Date.now();
+            if (now - lastActivity >= IDLE_LOCK_MS || now - unlockedAt >= MAX_UNLOCK_MS) {
+                lockApp('Dashboard locked after inactivity or expiry. Enter your private access key.');
+                return false;
+            }
+            return true;
+        }
+
+        function lockApp(message = 'Signed out. Enter your private access key to continue.') {
+            userKey = '';
+            sessionGeneration++;
+            activeRequests.forEach(controller => controller.abort());
+            activeRequests.clear();
+            cachedTransactions = [];
+            document.body.classList.add('app-locked');
+            document.getElementById('app').inert = true;
+            document.getElementById('login-overlay').style.display = 'flex';
+            document.getElementById('login-pass').value = '';
+            document.getElementById('login-msg').textContent = message;
+            for (const id of ['tx-list', 'budget-list', 'month-filter']) document.getElementById(id).replaceChildren();
+            for (const id of ['val-liquid', 'val-assets', 'val-stock']) document.getElementById(id).textContent = '••••';
+            for (const id of ['inp-amount', 'inp-note', 'edit-note', 'edit-amount', 'edit-uuid']) document.getElementById(id).value = '';
+            for (const id of ['profile-settings-modal', 'budget-settings-modal', 'edit-modal']) document.getElementById(id).style.display = 'none';
+            document.getElementById('input-panel').classList.remove('active');
+            if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+            if (cashflowChartInstance) { cashflowChartInstance.destroy(); cashflowChartInstance = null; }
+        }
+
+        function signOut() {
+            lockApp('Signed out. Saved offline records remain on this device until erased.');
+            localStorage.setItem('myBankLockEvent', `${Date.now()}-${Math.random()}`);
+        }
+
+        async function eraseLocalData() {
+            const button = document.getElementById('clear-local-btn');
+            if (button.disabled || !db) return;
+            button.disabled = true;
+            try {
+                const pending = await db.getAllFromIndex(STORE_NAME, 'synced', 0);
+                const edits = await db.count('syncQueue');
+                if (!confirm(`Erase saved records and settings on this device? This also deletes ${pending.length} unsynced transaction(s) and ${edits} queued change(s). Google Sheets records will stay in the cloud.`)) return;
+                signOut();
+                await syncManager.whenIdle();
+                const tx = db.transaction([STORE_NAME, 'syncQueue'], 'readwrite');
+                await Promise.all([tx.objectStore(STORE_NAME).clear(), tx.objectStore('syncQueue').clear()]);
+                await tx.done;
+                for (const key of Object.keys(localStorage)) if (key.startsWith('myBank')) localStorage.removeItem(key);
+                appSettings = { accountId: 'account_1', userName: '', displayCurrency: 'THB' };
+                currentUser = 'account_1';
+                CATEGORY_CONFIG = DEFAULT_CATEGORY_CONFIG;
+                EXCHANGE_RATES = DEFAULT_EXCHANGE_RATES;
+                document.getElementById('login-msg').textContent = 'Saved data erased from this device. Enter your private access key to continue.';
+            } catch (_) {
+                document.getElementById('login-msg').textContent = 'Could not erase saved data. Close other app tabs and try again.';
+            } finally { button.disabled = false; }
+        }
 
         async function apiRequest(action, data, key = userKey) {
             if (!key) throw new Error('Enter your private access key first.');
-            const res = await fetch(SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify({ key, action, data })
-            });
-            if (!res.ok) throw new Error('Server request failed.');
-            const json = await res.json();
-            if (json.status !== 'success') throw new Error(json.message || 'Server request failed.');
-            return json;
+            if (key === userKey && !hasActiveSession()) throw new Error('Dashboard is locked.');
+            const generation = sessionGeneration;
+            const controller = new AbortController();
+            activeRequests.add(controller);
+            const timeout = setTimeout(() => controller.abort(), 25000);
+            try {
+                const res = await fetch(SCRIPT_URL, {
+                    method: 'POST', cache: 'no-store', signal: controller.signal,
+                    body: JSON.stringify({ key, action, data })
+                });
+                if (!res.ok) throw new Error('Server request failed.');
+                const json = await res.json();
+                if (generation !== sessionGeneration) throw new Error('Dashboard is locked.');
+                if (!json || json.status !== 'success') {
+                    if (json?.message === 'Unauthorized' && key === userKey) lockApp('Access key revoked or no longer valid. Enter a valid key.');
+                    throw new Error(json?.message || 'Server request failed.');
+                }
+                return json;
+            } finally { clearTimeout(timeout); activeRequests.delete(controller); }
         }
 
         async function attemptLogin() {
@@ -492,6 +571,7 @@
             const msg = document.getElementById('login-msg');
             const button = document.getElementById('login-btn');
 
+            if (!db) { msg.innerText = 'Preparing local storage. Please try again.'; return; }
             if (!input) { msg.innerText = 'Enter your private access key.'; return; }
             if (button.disabled) return;
             msg.innerText = "Verifying...";
@@ -529,10 +609,14 @@
         });
 
         function unlockApp(key) {
+            sessionGeneration++;
             userKey = key;
+            lastActivity = unlockedAt = Date.now();
+            document.getElementById('app').inert = false;
             document.getElementById('login-overlay').style.display = 'none';
             document.body.classList.remove('app-locked');
             document.getElementById('login-pass').value = '';
+            checkIdentity();
             renderList();
             syncManager.push();
         }
@@ -540,16 +624,22 @@
         // --- APP STARTUP ---
         document.addEventListener('DOMContentLoaded', async () => {
             await initDB();
-            checkIdentity();
             populateCategoryUI();
-            renderList();
 
             const runSync = () => {
-                if (userKey) { syncManager.push(); syncManager.pull(); }
+                if (hasActiveSession()) syncManager.push();
             };
             window.addEventListener('online', runSync);
             setInterval(runSync, 30000);
             runSync();
+            const recordActivity = () => { if (hasActiveSession()) lastActivity = Date.now(); };
+            window.addEventListener('pointerdown', recordActivity, { passive: true });
+            window.addEventListener('keydown', recordActivity);
+            window.addEventListener('pagehide', () => lockApp());
+            document.addEventListener('visibilitychange', () => hasActiveSession());
+            window.addEventListener('storage', event => {
+                if (event.key === 'myBankLockEvent' && event.newValue) lockApp('Dashboard locked from another tab.');
+            });
         });
 
         // --- VIEW MODE TOGGLE LOGIC ---
@@ -695,6 +785,7 @@
         }
 
         function openForm(type) {
+            if (!hasActiveSession()) return;
             currentType = type;
             populateCategoryUI(true);
             document.getElementById('form-title').innerText = `Add ${type}`;
@@ -721,12 +812,14 @@
         }
 
         async function saveTransaction() {
+            if (!hasActiveSession()) return;
             const amountRaw = parseFloat(document.getElementById('inp-amount').value);
-            if (!amountRaw) return alert("Enter amount");
+            if (!Number.isFinite(amountRaw) || !amountRaw || Math.abs(amountRaw) > 1e15) return alert('Enter a valid amount.');
             const category = document.getElementById('inp-category').value;
             const subcategory = document.getElementById('inp-subcategory').value;
             if (!validateCategoryFields(document.getElementById('inp-category'), document.getElementById('inp-subcategory'))) return;
             const note = document.getElementById('inp-note').value;
+            if (note.length > 1000) return alert('Keep the note within 1,000 characters.');
             const amount = currentType === 'Expense' ? -Math.abs(amountRaw) : Math.abs(amountRaw);
             const rate = EXCHANGE_RATES[currentCurrency] || 1;
             const tx = {
@@ -748,7 +841,10 @@
         }
 
         async function renderList() {
+            if (!hasActiveSession()) return;
+            const generation = sessionGeneration;
             const allTxs = await db.getAllFromIndex(STORE_NAME, 'timestamp');
+            if (generation !== sessionGeneration || !hasActiveSession()) return;
             const monthFilterEl = document.getElementById('month-filter');
             let monthKeys = [];
             if (monthFilterEl) {
@@ -1243,58 +1339,134 @@
             });
         }
 
+        function transactionRevision(tx) {
+            return JSON.stringify([tx.uuid, tx.timestamp, tx.user_tag, tx.category, tx.sub_category,
+                tx.amount, tx.note, tx.currency, tx.fx_rate]);
+        }
+
+        function confirmedAppendIds(json, batch) {
+            const result = json?.result;
+            if (!Array.isArray(result?.accepted_ids)) throw new Error('Backend update required: deploy the latest Apps Script version.');
+            const sent = new Set(batch.map(item => item.uuid));
+            const accepted = new Set(result.accepted_ids);
+            if (!Number.isInteger(result.rows_added) || result.rows_added < 0 || result.rows_added > accepted.size ||
+                accepted.size !== result.accepted_ids.length || [...accepted].some(id => typeof id !== 'string' || !sent.has(id))) {
+                throw new Error('Invalid synchronization acknowledgement.');
+            }
+            return accepted;
+        }
+
+        async function appendAcknowledgement(json, batch) {
+            if (Array.isArray(json?.result?.accepted_ids)) return confirmedAppendIds(json, batch);
+            // Older deployments can be verified only by reading back exact records.
+            // A generic success response alone must never clear pending state.
+            const proof = await apiRequest('READ');
+            const rows = proof.data?.recent_transactions;
+            if (!Array.isArray(rows)) throw new Error('Backend update required: deploy the latest Apps Script version.');
+            const accepted = batch.filter(item => rows.some(row => row.uuid === item.uuid &&
+                Date.parse(row.timestamp) === Date.parse(item.timestamp) && row.user_tag === item.user_tag &&
+                row.category === item.category && row.sub_category === item.sub_category &&
+                Number(row.amount) === item.amount && row.note === item.note &&
+                row.currency === item.currency && Number(row.fx_rate) === item.fx_rate)).map(item => item.uuid);
+            return confirmedAppendIds({ result: { rows_added: 0, accepted_ids: accepted } }, batch);
+        }
+
         const syncManager = {
-            push: async () => { syncManager.processQueue(); },
-            processQueue: async () => {
-                if (!userKey) return;
+            running: null,
+            pulling: null,
+            editing: false,
+            push() { return this.processQueue(); },
+            whenIdle() { return Promise.allSettled([this.running, this.pulling]); },
+            processQueue() {
+                if (this.editing) return Promise.resolve();
+                if (this.running) return this.running;
+                this.running = this.runQueue().finally(() => { this.running = null; });
+                return this.running;
+            },
+            async runQueue() {
+                if (!hasActiveSession()) return;
+                const generation = sessionGeneration;
+                const isCurrent = () => generation === sessionGeneration && hasActiveSession();
                 if (!navigator.onLine) { updateStatus('Offline', 'offline'); return; }
                 const pending = await db.getAllFromIndex(STORE_NAME, 'synced', 0);
+                if (!isCurrent()) return;
                 if (pending.length > 0) {
                     updateStatus('Syncing...', 'syncing');
                     try {
-                        for (let offset = 0; offset < pending.length; offset += 100) {
-                            const batch = pending.slice(offset, offset + 100);
-                            await apiRequest('APPEND_ROWS', batch);
+                        for (let offset = 0; offset < pending.length; offset += 25) {
+                            if (!isCurrent()) return;
+                            const batch = pending.slice(offset, offset + 25);
+                            const json = await apiRequest('APPEND_ROWS', batch);
+                            const accepted = await appendAcknowledgement(json, batch);
+                            if (!isCurrent()) return;
                             const tx = db.transaction(STORE_NAME, 'readwrite');
-                            for (const item of batch) await tx.store.put({ ...item, synced: 1 });
+                            for (const item of batch) {
+                                const current = await tx.store.get(item.uuid);
+                                if (accepted.has(item.uuid) && current && transactionRevision(current) === transactionRevision(item)) {
+                                    await tx.store.put({ ...current, synced: 1 });
+                                }
+                            }
                             await tx.done;
+                            if (accepted.size !== batch.length) throw new Error('Some records were not confirmed and remain pending.');
                         }
-                    } catch (e) { console.error("Append Failed", e); updateStatus('Sync Error', 'error'); return; }
+                    } catch (e) { if (isCurrent()) updateStatus(e.message || 'Sync Error', 'error'); return; }
                 }
                 const editJobs = await db.getAll('syncQueue');
+                if (!isCurrent()) return;
                 if (editJobs.length > 0) {
                     updateStatus('Updating Edits...', 'syncing');
                     for (const job of editJobs) {
                         try {
+                            if (!isCurrent()) return;
+                            if (!['EDIT_TRANSACTION', 'DELETE_TRANSACTION'].includes(job.type)) throw new Error('Unknown queued operation.');
                             const json = await apiRequest(job.type, job.payload);
-                            if (json.status === 'success') await db.delete('syncQueue', job.id);
-                            else { console.error("Edit Failed on Server:", json); updateStatus('Edit Error', 'error'); }
-                        } catch (e) { console.error("Edit Network Fail", e); updateStatus('Net Error', 'error'); }
+                            const confirmed = job.type === 'EDIT_TRANSACTION' ? json.result?.updated_id : json.result?.deleted_id;
+                            if (confirmed !== job.payload.id) throw new Error('Change was not confirmed and remains queued.');
+                            if (!isCurrent()) return;
+                            await db.delete('syncQueue', job.id);
+                        } catch (e) { if (isCurrent()) updateStatus(e.message || 'Change not synced', 'error'); return; }
                     }
                 }
-                syncManager.pull();
+                if (isCurrent()) await this.pull();
             },
-            pull: async () => {
-                if (!navigator.onLine || !userKey) return;
+            pull() {
+                if (this.pulling) return this.pulling;
+                this.pulling = this.runPull().finally(() => { this.pulling = null; });
+                return this.pulling;
+            },
+            async runPull() {
+                if (!navigator.onLine || !hasActiveSession()) return;
+                const generation = sessionGeneration;
                 try {
                     const json = await apiRequest('READ');
-                    if (json.status === 'success') {
+                    if (generation !== sessionGeneration || !hasActiveSession()) return;
+                    if (json.status === 'success' && Array.isArray(json.data?.recent_transactions)) {
                         if (json.data.exchange_rates) { EXCHANGE_RATES = json.data.exchange_rates.rates; localStorage.setItem('myBankRates', JSON.stringify(EXCHANGE_RATES)); }
                         if (json.data.category_config) { CATEGORY_CONFIG = json.data.category_config; localStorage.setItem('myBankConfig', JSON.stringify(CATEGORY_CONFIG)); populateCategoryUI(); }
-                        const tx = db.transaction(STORE_NAME, 'readwrite');
-                        for (const row of json.data.recent_transactions) await tx.store.put({ ...row, amount: Number(row.amount), synced: 1 });
+                        const tx = db.transaction([STORE_NAME, 'syncQueue'], 'readwrite');
+                        const store = tx.objectStore(STORE_NAME);
+                        const jobs = await tx.objectStore('syncQueue').getAll();
+                        const queuedIds = new Set(jobs.map(job => job.payload.id));
+                        for (const row of json.data.recent_transactions) {
+                            const current = await store.get(row.uuid);
+                            if (current?.synced === 0 || queuedIds.has(row.uuid)) continue;
+                            await store.put({ ...row, amount: Number(row.amount), synced: 1 });
+                        }
                         await tx.done;
                         renderList();
                         updateStatus('Online', 'online');
-                    } else { console.error('Server Error:', json); updateStatus('Server Error', 'error'); }
-                } catch (e) { console.error("Pull Failed:", e); updateStatus('Connection Fail', 'error'); }
+                    } else { updateStatus('Invalid server response', 'error'); }
+                } catch (_) { if (generation === sessionGeneration && hasActiveSession()) updateStatus('Connection Fail', 'error'); }
             }
         };
 
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
 
         function openEditModal(uuid) {
+            if (!hasActiveSession()) return;
+            const generation = sessionGeneration;
             db.get(STORE_NAME, uuid).then(tx => {
+                if (generation !== sessionGeneration || !hasActiveSession()) return;
                 if (!tx) return alert("Transaction not found locally.");
                 document.getElementById('edit-uuid').value = tx.uuid;
                 document.getElementById('edit-date').value = new Date(tx.timestamp).toISOString().slice(0, 16);
@@ -1337,33 +1509,44 @@
         }
 
         async function saveEdit() {
-            const uuid = document.getElementById('edit-uuid').value;
-            const dateVal = document.getElementById('edit-date').value;
-            const cat = document.getElementById('edit-category').value;
-            const sub = document.getElementById('edit-subcategory').value;
-            if (!validateCategoryFields(document.getElementById('edit-category'), document.getElementById('edit-subcategory'))) return;
-            const amtRaw = parseFloat(document.getElementById('edit-amount').value);
-            const note = document.getElementById('edit-note').value;
-            if (!amtRaw) return alert("Invalid Amount");
-            
-            const original = await db.get(STORE_NAME, uuid);
-            const newCatType = getCategoryType(cat);
-            const isExpense = (newCatType === 'EXPENSE' || newCatType === 'ASSET');
-            const finalAmount = isExpense ? -Math.abs(amtRaw) : Math.abs(amtRaw);
-            
-            const updatedTx = {
-                ...original,
-                timestamp: new Date(dateVal).toISOString(),
-                category: cat, sub_category: sub, amount: finalAmount, note: note,
-            };
-            await db.put(STORE_NAME, updatedTx);
-            document.getElementById('edit-modal').style.display = 'none';
-            renderList();
-            
-            if (original.synced === 1) {
-                const job = { type: 'EDIT_TRANSACTION', payload: { id: uuid, date: updatedTx.timestamp, category: cat, sub_category: sub, amount: finalAmount, note: note }, createdAt: Date.now() };
-                await db.put('syncQueue', job);
-            }
+            if (!hasActiveSession()) return;
+            if (syncManager.editing) return;
+            syncManager.editing = true;
+            const generation = sessionGeneration;
+            try {
+                await syncManager.whenIdle();
+                if (generation !== sessionGeneration || !hasActiveSession()) return;
+                const uuid = document.getElementById('edit-uuid').value;
+                const dateVal = document.getElementById('edit-date').value;
+                const cat = document.getElementById('edit-category').value;
+                const sub = document.getElementById('edit-subcategory').value;
+                if (!validateCategoryFields(document.getElementById('edit-category'), document.getElementById('edit-subcategory'))) return;
+                const amtRaw = parseFloat(document.getElementById('edit-amount').value);
+                const note = document.getElementById('edit-note').value;
+                if (!Number.isFinite(amtRaw) || !amtRaw || Math.abs(amtRaw) > 1e15) return alert('Enter a valid amount.');
+                if (note.length > 1000) return alert('Keep the note within 1,000 characters.');
+                if (!dateVal || !Number.isFinite(Date.parse(dateVal))) return alert('Enter a valid date.');
+
+                const original = await db.get(STORE_NAME, uuid);
+                if (generation !== sessionGeneration || !hasActiveSession() || !original) return;
+                const newCatType = getCategoryType(cat);
+                const isExpense = (newCatType === 'EXPENSE' || newCatType === 'ASSET');
+                const finalAmount = isExpense ? -Math.abs(amtRaw) : Math.abs(amtRaw);
+                const updatedTx = {
+                    ...original,
+                    timestamp: new Date(dateVal).toISOString(),
+                    category: cat, sub_category: sub, amount: finalAmount, note: note
+                };
+                const localWrite = db.transaction([STORE_NAME, 'syncQueue'], 'readwrite');
+                await localWrite.objectStore(STORE_NAME).put(updatedTx);
+                if (original.synced === 1) {
+                    const job = { type: 'EDIT_TRANSACTION', payload: { id: uuid, date: updatedTx.timestamp, category: cat, sub_category: sub, amount: finalAmount, note: note }, createdAt: Date.now() };
+                    await localWrite.objectStore('syncQueue').put(job);
+                }
+                await localWrite.done;
+                document.getElementById('edit-modal').style.display = 'none';
+                renderList();
+            } finally { syncManager.editing = false; }
             syncManager.processQueue();
         }
         function toggleChartMode() { showAllCashflow = document.getElementById('chart-toggle').checked; renderChart(cachedTransactions); }

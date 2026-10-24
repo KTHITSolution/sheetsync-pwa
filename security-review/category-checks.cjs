@@ -32,10 +32,12 @@ const context = vm.createContext({
   },
   currentType: 'Income', currentCurrency: 'THB', currentUser: 'account_1',
   EXCHANGE_RATES: { THB: 1 }, STORE_NAME: 'transactions',
+  hasActiveSession: () => true, sessionGeneration: 1,
   getCategoryType: () => 'INCOME',
   crypto: { randomUUID: () => 'new-id' },
-  db: { put: async (_, tx) => saved.push(tx), get: async () => { dbGets++; return { synced: 0 }; } },
-  closeForm() {}, renderList() {}, syncManager: { push() {}, processQueue() {} }
+  db: { put: async (_, tx) => saved.push(tx), get: async () => { dbGets++; return { synced: 0 }; },
+    transaction: () => ({ objectStore: () => ({ put: async tx => saved.push(tx) }), done: Promise.resolve() }) },
+  closeForm() {}, renderList() {}, syncManager: { push() {}, processQueue() {}, whenIdle: async () => {} }
 });
 vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'category-icons.js'), 'utf8'), context);
 function loadFunction(name, nextName) {

@@ -1,5 +1,6 @@
 // --- CONFIGURATION & IAM ---
 const SHEET_ID = '1NqBkNkuiiQJc30G3lDny18kGyBv584Q0tp3b6qFtPr4'; // <--- YOUR ID
+const BACKEND_VERSION = '2026-10-24-security-remediation';
 // Open the spreadsheet only after authentication and authorization succeed.
 function getSpreadsheet() {
   return SpreadsheetApp.openById(SHEET_ID);
@@ -48,8 +49,35 @@ function requireId(value) {
 function requireDate(value) {
   requireText(value, 35, false);
   if (!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})?)?$/.test(value) ||
-      !Number.isFinite(Date.parse(value))) throw new Error('Invalid transaction data');
+      !Number.isFinite(Date.parse(value)) ||
+      new Date(value.slice(0, 10) + 'T00:00:00Z').toISOString().slice(0, 10) !== value.slice(0, 10)) {
+    throw new Error('Invalid transaction data');
+  }
   return value;
+}
+
+function getCategoryConfig() {
+  return {
+    'Daily Living': { type: 'EXPENSE', subs: ['Food', 'Transport', 'Utilities', 'Household', 'Family', 'Donation', 'Parent', 'Baby', 'IT Equipments and Accessories'] },
+    Lifestyle: { type: 'EXPENSE', subs: ['Clothes', 'Cosmetic', 'Entertainment', 'Wearable'] },
+    Agriculture: { type: 'EXPENSE', subs: ['Agri Inputs', 'Tools', 'Labor'] },
+    'Assets & Savings': { type: 'ASSET', subs: ['Gold', 'Stocks', 'Land', 'Building', 'Savings'] },
+    Loans: { type: 'LIABILITY', subs: ['Loan Received', 'Loan Repayment', 'Loan Interest'] },
+    Income: { type: 'INCOME', subs: ['Salary', 'Bonus', 'Other'] },
+    'Store Inventory': { type: 'ASSET', subs: ['Computers', 'Peripherals', 'Printers & Office', 'Networking & Parts'] },
+    'Business Sales': { type: 'INCOME', subs: ['Project Payment', 'Consulting Fee', 'Product Sale'] },
+    'Vehicle & Licenses': { type: 'EXPENSE', subs: ['Motorcycle', 'Car', 'Motorcycle License Renewal', 'Car License Renewal', 'Driving License Renewal', 'Fuel', 'Insurance'] },
+    Maintenance: { type: 'EXPENSE', subs: ['Home', 'Appliance Repair', 'Car', 'Motor Cycle', 'Laptop', 'Phone', 'Other'] },
+    'Tech & Electronics': { type: 'EXPENSE', subs: ['Laptop', 'Peripherals', 'Software', 'Phone', 'Tablet', 'Other'] }
+  };
+}
+
+function normalizedSubcategory(value) {
+  const label = value.replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/u, '').trim();
+  const aliases = { 'IT Equipments': 'IT Equipments and Accessories',
+    'Moto License': 'Motorcycle License Renewal', 'Car License': 'Car License Renewal',
+    'Driving License': 'Driving License Renewal', 'Motor Cycle': 'Motorcycle' };
+  return Object.prototype.hasOwnProperty.call(aliases, label) ? aliases[label] : label;
 }
 
 function requireNumber(value, positive) {
@@ -64,6 +92,11 @@ function validateTransactionData(data, editing) {
   const date = requireDate(editing ? data.date : data.timestamp);
   const category = requireText(data.category, 100, false);
   const subCategory = requireText(data.sub_category, 100, false);
+  const categories = getCategoryConfig();
+  if (!Object.prototype.hasOwnProperty.call(categories, category) ||
+      !categories[category].subs.some(sub => normalizedSubcategory(sub) === normalizedSubcategory(subCategory))) {
+    throw new Error('Invalid transaction data');
+  }
   const note = requireText(data.note == null ? '' : data.note, 1000, true);
   const amount = requireNumber(data.amount, false);
   const currency = data.currency == null ? 'THB' : data.currency;
@@ -127,6 +160,13 @@ class SheetRepository {
     return new Set(rawIds.map(id => String(id)));
   }
 
+  getExistingRows() {
+    const lastRow = this.sheet.getLastRow();
+    if (lastRow <= 1) return new Map();
+    const rows = this.sheet.getRange(2, 1, lastRow - 1, 10).getValues();
+    return new Map(rows.map(row => [String(row[0]), row]));
+  }
+
   appendBulk(rowsArray) {
     if (rowsArray.length === 0) return 0;
     const lastRow = this.sheet.getLastRow();
@@ -144,14 +184,10 @@ class SheetRepository {
   }
 
   updateRow(rowIndex, data) {
-    this.sheet.getRange(rowIndex, 2).setValue(sheetLiteral(data.date));
-    this.sheet.getRange(rowIndex, 4).setValue(sheetLiteral(data.category));
-    this.sheet.getRange(rowIndex, 5).setValue(sheetLiteral(data.sub_category));
-    this.sheet.getRange(rowIndex, 6).setValue(data.amount);
-    this.sheet.getRange(rowIndex, 7).setValue(sheetLiteral(data.note));
-    this.sheet.getRange(rowIndex, 8).setValue(new Date().toISOString());
-    this.sheet.getRange(rowIndex, 9).setValue(sheetLiteral(data.currency));
-    this.sheet.getRange(rowIndex, 10).setValue(data.fx_rate);
+    const current = this.getRowData(rowIndex);
+    const row = [current[0], data.date, current[2], data.category, data.sub_category,
+      data.amount, data.note, new Date().toISOString(), data.currency, data.fx_rate];
+    this.sheet.getRange(rowIndex, 1, 1, 10).setValues([row.map(sheetLiteral)]);
   }
   // [NEW] Helper to get raw data before deletion
   getRowData(rowIndex) {
@@ -173,32 +209,59 @@ class FinanceService {
     this.user = currentUserEmail;
   }
 
+  mutate(action, changes, write) {
+    // A durable intent with all before/after data must exist before any mutation.
+    const receipt = this.audit.begin(this.user, action, changes);
+    let result;
+    try {
+      result = write();
+      SpreadsheetApp.flush();
+    } catch (err) {
+      try { this.audit.finish(receipt, 'UNCERTAIN'); } catch (_) { /* Durable PENDING intent remains. */ }
+      throw err;
+    }
+    // If this fails, the PENDING intent remains for owner reconciliation.
+    this.audit.finish(receipt, 'COMMITTED');
+    return result;
+  }
+
   addTransactions(rawRows) {
     if (!Array.isArray(rawRows) || rawRows.length < 1 || rawRows.length > 100) {
       throw new Error('Invalid transaction data');
     }
-    const checkedRows = rawRows.map(row => validateTransactionData(row, false));
-    const existingIds = this.repo.getExistingUUIDs();
+    const unique = new Map();
+    rawRows.forEach(row => {
+      const checked = validateTransactionData(row, false);
+      if (unique.has(checked.uuid) && JSON.stringify(unique.get(checked.uuid)) !== JSON.stringify(checked)) {
+        throw new Error('Conflicting transaction ID');
+      }
+      unique.set(checked.uuid, checked);
+    });
+    const checkedRows = Array.from(unique.values());
+    const existing = this.repo.getExistingRows();
     const serverTime = new Date().toISOString();
-    const newRows = checkedRows.filter(r => !existingIds.has(r.uuid));
-
-    if (newRows.length === 0) return 0;
+    checkedRows.forEach(r => {
+      if (!existing.has(r.uuid)) return;
+      const row = existing.get(r.uuid);
+      const sameText = (stored, input) => stored === input || stored === sheetLiteral(input);
+      if (Date.parse(row[1]) !== Date.parse(r.timestamp) || !sameText(row[2], r.user_tag) ||
+          !sameText(row[3], r.category) || !sameText(row[4], r.sub_category) ||
+          row[5] !== r.amount || !sameText(row[6], r.note) || row[8] !== r.currency || row[9] !== r.fx_rate) {
+        throw new Error('Conflicting transaction ID');
+      }
+    });
+    const newRows = checkedRows.filter(r => !existing.has(r.uuid));
+    const acceptedIds = checkedRows.map(r => r.uuid);
+    if (newRows.length === 0) return { rows_added: 0, accepted_ids: acceptedIds };
 
     const values = newRows.map(r => [
       r.uuid, r.timestamp, r.user_tag, r.category, r.sub_category,
       r.amount, r.note, serverTime, r.currency, r.fx_rate
     ]);
 
-    // 1. Persist
-    const count = this.repo.appendBulk(values);
-
-    // 2. [AUDIT] Log Creation
-    // We log the first ID as a reference, or you could loop and log all
-    if (count > 0) {
-      this.audit.log(this.user, 'CREATE', newRows[0].uuid, `Added ${count} transactions`);
-    }
-
-    return count;
+    const count = this.mutate('CREATE', newRows.map((r, i) => ({ id: r.uuid, before: null, after: values[i] })),
+      () => this.repo.appendBulk(values));
+    return { rows_added: count, accepted_ids: acceptedIds };
   }
 
   editTransaction(editData) {
@@ -212,16 +275,8 @@ class FinanceService {
       fx_rate: editData.fx_rate == null ? currentRow[9] || 1 : editData.fx_rate
     }, true);
 
-    // 1. Update
-    this.repo.updateRow(rowIndex, safeData);
-
-    // 2. [AUDIT] Log Update
-    // We log exactly what critical fields changed (Amount/Category)
-    this.audit.log(this.user, 'UPDATE', safeData.id, {
-      newAmount: safeData.amount,
-      newCategory: safeData.category,
-      note: "Edited via App"
-    });
+    this.mutate('UPDATE', [{ id, before: currentRow, after: safeData }],
+      () => this.repo.updateRow(rowIndex, safeData));
 
     return safeData.id;
   }
@@ -230,19 +285,13 @@ class FinanceService {
   deleteTransaction(uuid) {
     requireId(uuid);
     const rowIndex = this.repo.findRowIndexById(uuid);
-    if (rowIndex === -1) throw new Error("ID not found for deletion.");
+    if (rowIndex === -1) return uuid; // An already deleted ID is an idempotent success.
 
     // 1. Fetch Data for Backup (The "Undo" Safety Net)
     const rowData = this.repo.getRowData(rowIndex);
 
-    // 2. Delete
-    this.repo.deleteRow(rowIndex);
-
-    // 3. [AUDIT] Log the DELETION with the BACKUP DATA
-    this.audit.log(this.user, 'DELETE', uuid, {
-      backupData: rowData, // Saves the entire array [uuid, date, cat, amount...]
-      reason: "User requested delete"
-    });
+    this.mutate('DELETE', [{ id: uuid, before: rowData, after: null }],
+      () => this.repo.deleteRow(rowIndex));
 
     return uuid;
   }
@@ -261,19 +310,25 @@ class AuditService {
   }
 
   log(userEmail, action, txId, details) {
-    try {
-      const timestamp = new Date().toISOString();
-      // Ensure details are stringified for cell storage
-      const detailString = typeof details === 'object' ? JSON.stringify(details) : String(details);
+    const detailString = typeof details === 'object' ? JSON.stringify(details) : String(details);
+    this.sheet.appendRow([new Date().toISOString(), userEmail, action, txId, detailString].map(sheetLiteral));
+    SpreadsheetApp.flush(); // Propagate failure rather than permit an unaudited mutation.
+  }
 
-      this.sheet.appendRow([
-        timestamp, userEmail, action, txId, detailString
-      ].map(sheetLiteral));
-      // Force save to ensure log persists even if subsequent code fails
-      SpreadsheetApp.flush();
-    } catch (e) {
-      console.error("Audit Log Failed: " + e.toString());
-    }
+  begin(userEmail, action, changes) {
+    const startRow = this.sheet.getLastRow() + 1;
+    const timestamp = new Date().toISOString();
+    const details = changes.map(change => ({ state: 'PENDING', before: change.before, after: change.after }));
+    this.sheet.getRange(startRow, 1, changes.length, 5).setValues(changes.map((change, index) =>
+      [timestamp, userEmail, action, change.id, JSON.stringify(details[index])].map(sheetLiteral)));
+    SpreadsheetApp.flush();
+    return { startRow, details };
+  }
+
+  finish(receipt, state) {
+    this.sheet.getRange(receipt.startRow, 5, receipt.details.length, 1).setValues(
+      receipt.details.map(detail => [JSON.stringify({ ...detail, state })]));
+    SpreadsheetApp.flush();
   }
 }
 // --- CONTROLLERS ---
@@ -313,8 +368,8 @@ function doPost(e) {
     // --- ROUTER ---
     if (action === 'APPEND_ROWS') {
       auth.enforceRole(ROLES.EDITOR, 'APPEND_ROWS');
-      const count = finance.addTransactions(payload.data);
-      return createJSONOutput({ status: 'success', result: { rows_added: count } });
+      const result = finance.addTransactions(payload.data);
+      return createJSONOutput({ status: 'success', result });
     }
     else if (action === 'EDIT_TRANSACTION') {
       auth.enforceRole(ROLES.EDITOR, 'EDIT_TRANSACTION');
@@ -368,7 +423,7 @@ function verifyBackendSetup() {
   }
   const sheet = getSpreadsheet().getSheetByName('Transactions');
   if (!sheet) throw new Error('Transactions sheet was not found');
-  console.log('[My Bank] Backend setup OK: ' + digests.length + ' configured key(s), Transactions sheet accessible.');
+  console.log('[My Bank] Backend ' + BACKEND_VERSION + ' setup OK: ' + digests.length + ' configured key(s), Transactions sheet accessible.');
 }
 
 // Internal helper: Apps Script routes HTTP only through doGet/doPost.
@@ -390,28 +445,11 @@ function readData() {
 
     const RATES = { "base": "THB", "rates": { "THB": 1, "USD": 32, "MMK": 0.008 } };
 
-    const CATEGORIES = {
-      "Daily Living": { "type": "EXPENSE", "subs": ["Food", "Transport", "Utilities", "Household", "Family", "Donation", "Parent", "Baby", "IT Equipments and Accessories"] },
-      "Lifestyle": { "type": "EXPENSE", "subs": ["Clothes", "Cosmetic", "Entertainment", "Wearable"] },
-      "Agriculture": { "type": "EXPENSE", "subs": ["Agri Inputs", "Tools", "Labor"] },
-      "Assets & Savings": { "type": "ASSET", "subs": ["Gold", "Stocks", "Land", "Building", "Savings"] },
-      "Loans": { "type": "LIABILITY", "subs": ["Loan Received", "Loan Repayment", "Loan Interest"] },
-      "Income": { "type": "INCOME", "subs": ["Salary", "Bonus", "Other"] },
-      "Store Inventory": {
-        "type": "ASSET",
-        "subs": ["Computers", "Peripherals", "Printers & Office", "Networking & Parts"]
-      },
-      "Business Sales": {
-        "type": "INCOME",
-        "subs": ["Project Payment", "Consulting Fee", "Product Sale"]
-      },
-      "Vehicle & Licenses": { "type": "EXPENSE", "subs": ["Motorcycle", "Car", "Motorcycle License Renewal", "Car License Renewal", "Driving License Renewal", "Fuel", "Insurance"] },
-      "Maintenance": { "type": "EXPENSE", "subs": ["Home", "Appliance Repair", "Car", "Motor Cycle", "Laptop", "Phone", "Other"] },
-      "Tech & Electronics": { "type": "EXPENSE", "subs": ["Laptop", "Peripherals", "Software", "Phone", "Tablet", "Other"] },
-    };
+    const CATEGORIES = getCategoryConfig();
 
     return createJSONOutput({
       status: 'success',
+      backend_version: BACKEND_VERSION,
       data: {
         recent_transactions: transactions,
         category_config: CATEGORIES,

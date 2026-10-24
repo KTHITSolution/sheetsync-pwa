@@ -22,6 +22,10 @@ body {
   color: var(--text-main);
 }
 body.app-locked { overflow: hidden; }
+body.app-locked #app { display: none; }
+.local-data-note { margin: 12px 0 8px; color: #6f7d74; font-size: .72rem; line-height: 1.5; }
+.local-data-button { padding: 8px 0; border: 0; background: none; color: #586e5f; font-size: .73rem; text-decoration: underline; cursor: pointer; }
+.topbar-controls .lock-button { width: auto; padding: 0 10px; font-size: .72rem; }
 button, input, select { font: inherit; }
 button { -webkit-tap-highlight-color: transparent; }
 button:focus-visible, input:focus-visible, select:focus-visible, .tx-item:focus-visible {

@@ -41,7 +41,7 @@ const id = '123e4567-e89b-42d3-a456-426614174000';
 const base = { uuid: id, timestamp: '2026-10-24T00:00:00.000Z', user_tag: 'account_1',
   category: 'Income', sub_category: 'Salary', amount: 125, currency: 'USD', fx_rate: 32 };
 
-assert.equal(finance.addTransactions([{ ...base, note: '=HYPERLINK("https://example.invalid")' }]), 1);
+assert.equal(finance.addTransactions([{ ...base, note: '=HYPERLINK("https://example.invalid")' }]).rows_added, 1);
 assert.equal(transactions[1][6], "'=HYPERLINK(\"https://example.invalid\")");
 assert.equal(transactions[1][5], 125);
 assert.equal(transactions[1][9], 32);
@@ -49,10 +49,10 @@ assert.equal(formulaWrites, 0);
 assert.equal(audit[1][3], id);
 console.log('PASS: append stores formula-like notes as literal text and amounts as numbers');
 
-finance.editTransaction({ id, date: '2026-10-24T01:00:00.000Z', category: '=1+1',
-  sub_category: '+SUM(A1)', amount: -50, note: '  =IMPORTXML("https://example.invalid")' });
-assert.equal(transactions[1][3], "'=1+1");
-assert.equal(transactions[1][4], "'+SUM(A1)");
+finance.editTransaction({ id, date: '2026-10-24T01:00:00.000Z', category: 'Income',
+  sub_category: 'Bonus', amount: -50, note: '  =IMPORTXML("https://example.invalid")' });
+assert.equal(transactions[1][3], 'Income');
+assert.equal(transactions[1][4], 'Bonus');
 assert.equal(transactions[1][6], "'  =IMPORTXML(\"https://example.invalid\")");
 assert.equal(transactions[1][5], -50);
 assert.equal(transactions[1][8], 'USD');
@@ -72,6 +72,9 @@ assert.equal(context.sheetLiteral(-50), -50);
 const before = transactions.length;
 const badRows = [
   { ...base, uuid: '=bad', note: 'safe' },
+  { ...base, uuid: 'another', category: '=1+1', note: 'safe' },
+  { ...base, uuid: 'another', sub_category: '+SUM(A1)', note: 'safe' },
+  { ...base, uuid: 'another', timestamp: '2026-02-30', note: 'safe' },
   { ...base, uuid: 'another', amount: '=1+1', note: 'safe' },
   { ...base, uuid: 'another', amount: Infinity, note: 'safe' },
   { ...base, uuid: 'another', currency: '=USD', note: 'safe' },
@@ -83,3 +86,11 @@ assert.throws(() => finance.addTransactions(Array.from({ length: 101 }, () => ({
 assert.equal(transactions.length, before);
 assert.equal(formulaWrites, 0);
 console.log('PASS: invalid types, sizes and formula-like IDs are rejected before sheet mutation');
+
+const defaults = vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'config.js'), 'utf8') + '; DEFAULT_CATEGORY_CONFIG');
+for (const [category, detail] of Object.entries(defaults)) {
+  for (const sub_category of detail.subs) {
+    assert.doesNotThrow(() => context.validateTransactionData({ ...base, category, sub_category, note: 'offline default' }, false));
+  }
+}
+console.log('PASS: every bundled offline category and legacy emoji label passes the server allowlist');

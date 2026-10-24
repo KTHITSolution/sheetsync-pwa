@@ -1,8 +1,8 @@
-const CACHE_NAME = 'mybank-product-v10-formula-safety';
+const CACHE_NAME = 'mybank-product-v11-security-remediation';
 const ASSETS = [
   './',
   './index.html',
-  './theme.css?v=9',
+  './theme.css?v=11',
   './config.js',
   './category-icons.js',
   './assets/category-icons.svg',
@@ -27,7 +27,7 @@ self.addEventListener('activate', (e) => {
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
-          if (key !== CACHE_NAME) {
+          if (key !== CACHE_NAME && key.startsWith('mybank-')) {
             return caches.delete(key);
           }
         })

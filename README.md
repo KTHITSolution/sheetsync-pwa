@@ -1,21 +1,22 @@
 # 🏦 My Bank
-### The Ultimate Privacy-First Finance Tracker (PWA)
+### Finance tracker with Google Sheets and offline recording
 
 > **Stop paying subscriptions. Own your financial data.**
 
-**My Bank** is a professional-grade Progressive Web App (PWA) that combines the speed of a native mobile app with the privacy and flexibility of Google Sheets. Unlike standard fintech apps, your data is stored securely in **your own Google Drive**, not on third-party servers.
+**My Bank** is a Progressive Web App (PWA) that stores your ledger in your configured Google Sheet and caches records in your browser for offline recording. Access depends on the deployed backend, spreadsheet sharing, private keys, and device security. See the [current security status and remaining deployment checks](SECURITY_STATUS.md).
 
 ---
 
 ## ✨ Key Features
 
-* **🔒 100% Private:** Your financial data lives in your personal Google Sheet. We cannot see it.
-* **⚡ Offline-First:** Add transactions instantly, even in Airplane Mode. Data syncs automatically when you reconnect.
+* **🔒 Storage you control:** Your configured Google Sheet holds the ledger; the browser also retains an unencrypted local copy until you erase it.
+* **⚡ Offline recording:** After an online unlock, add transactions without a connection until the browser locks. Confirmed records sync when you reconnect.
 * **💸 Zero Monthly Fees:** You bought the code. You own it forever.
 * **🌍 Multi-Currency:** Native support for **THB, USD, and MMK** with auto-conversion.
 * **📊 Smart Dashboard:** Interactive drill-down charts to visualize spending habits.
 * **🗂️ Guided Categories:** Category and Sub-Category are required, with category suggestions for income and expense entries.
 * **🔐 Server Access Control:** Private per-user access keys enforce read, edit and delete permissions on the backend. Cached local records are not encrypted.
+* **🔏 Browser lock and cleanup:** Lock clears the in-memory key. The dashboard also locks after 15 minutes of inactivity or eight hours overall. Erase saved device data separately, with a warning about unsynced work.
 
 ---
 

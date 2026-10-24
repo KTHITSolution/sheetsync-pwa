@@ -16,10 +16,13 @@ class Sheet {
     return {
       getValues: () => Array.from({ length: height }, (_, i) =>
         Array.from({ length: width }, (_, j) => this.rows[row - 1 + i]?.[column - 1 + j] ?? '')),
-      setValues: values => values.forEach((cells, i) => cells.forEach((value, j) => {
+      setValues: values => {
+        if (this.failWrites || (this.failCompletion && column === 5)) throw new Error('Injected sheet write failure');
+        values.forEach((cells, i) => cells.forEach((value, j) => {
         this.rows[row - 1 + i] ??= [];
         this.rows[row - 1 + i][column - 1 + j] = value;
-      })),
+        }));
+      },
       setValue: value => { this.rows[row - 1][column - 1] = value; }
     };
   }
@@ -117,6 +120,62 @@ run('admin can delete', () => {
   assert.equal(post({ action: 'DELETE_TRANSACTION', key: tokens.admin, data: { id: 'seed' } }).status, 'success');
   assert.equal(transactions.rows.some(row => row[0] === 'seed'), false);
 });
+run('audit failure blocks append, edit and delete before financial writes', () => {
+  const before = JSON.stringify(transactions.rows);
+  audit.failWrites = true;
+  for (const [action, data] of [
+    ['APPEND_ROWS', [{ uuid: 'audit-blocked', timestamp: '2026-10-24', user_tag: 'account_1', category: 'Income', sub_category: 'Salary', amount: 10, note: 'test' }]],
+    ['EDIT_TRANSACTION', { id: 'admin', date: '2026-10-24', category: 'Income', sub_category: 'Bonus', amount: 30, note: 'blocked' }],
+    ['DELETE_TRANSACTION', { id: 'admin' }]
+  ]) {
+    assert.equal(post({ action, key: tokens.admin, data }).status, 'error');
+    assert.equal(JSON.stringify(transactions.rows), before);
+  }
+  audit.failWrites = false;
+});
+run('append confirms all IDs, coalesces retries, and audits every new row', () => {
+  const data = ['ack-one', 'ack-two'].map(uuid => ({ uuid, timestamp: '2026-10-24', user_tag: 'account_1',
+    category: 'Income', sub_category: 'Salary', amount: 10, note: 'test', currency: 'USD', fx_rate: 32 }));
+  const result = post({ action: 'APPEND_ROWS', key: tokens.admin, data: [...data, data[0]] });
+  assert.equal(result.status, 'success');
+  assert.deepEqual(result.result.accepted_ids, ['ack-one', 'ack-two']);
+  assert.equal(result.result.rows_added, 2);
+  const entries = audit.rows.slice(-2);
+  assert.deepEqual(entries.map(row => row[3]), ['ack-one', 'ack-two']);
+  for (const row of entries) {
+    const detail = JSON.parse(row[4]);
+    assert.equal(detail.state, 'COMMITTED');
+    assert.equal(detail.before, null);
+    assert.equal(detail.after[0], row[3]);
+  }
+  const retry = post({ action: 'APPEND_ROWS', key: tokens.admin, data });
+  assert.equal(retry.result.rows_added, 0);
+  assert.deepEqual(retry.result.accepted_ids, ['ack-one', 'ack-two']);
+  assert.equal(post({ action: 'APPEND_ROWS', key: tokens.admin, data: [{ ...data[0], amount: 999 }] }).status, 'error');
+});
+run('failed audit completion leaves a durable intent and append retry does not duplicate', () => {
+  const data = [{ uuid: 'audit-pending', timestamp: '2026-10-24', user_tag: 'account_1',
+    category: 'Income', sub_category: 'Salary', amount: 10, note: 'test' }];
+  audit.failCompletion = true;
+  assert.equal(post({ action: 'APPEND_ROWS', key: tokens.admin, data }).status, 'error');
+  assert.equal(JSON.parse(audit.rows.at(-1)[4]).state, 'PENDING');
+  audit.failCompletion = false;
+  assert.equal(post({ action: 'APPEND_ROWS', key: tokens.admin, data }).status, 'success');
+  assert.equal(transactions.rows.filter(row => row[0] === 'audit-pending').length, 1);
+});
+run('failed mutation leaves before/after evidence and delete retries are idempotent', () => {
+  transactions.failWrites = true;
+  assert.equal(post({ action: 'EDIT_TRANSACTION', key: tokens.admin, data: {
+    id: 'ack-one', date: '2026-10-24', category: 'Income', sub_category: 'Bonus', amount: 20, note: 'test'
+  } }).status, 'error');
+  transactions.failWrites = false;
+  const detail = JSON.parse(audit.rows.at(-1)[4]);
+  assert.equal(detail.state, 'UNCERTAIN');
+  assert.equal(detail.before[0], 'ack-one');
+  assert.equal(detail.after.amount, 20);
+  for (let i = 0; i < 2; i++) assert.equal(post({ action: 'DELETE_TRANSACTION', key: tokens.admin, data: { id: 'ack-one' } }).status, 'success');
+  assert.equal(JSON.parse(audit.rows.at(-1)[4]).before[0], 'ack-one');
+});
 run('revocation takes effect on the next request', () => {
   const revoked = { ...keyDirectory };
   delete revoked[sha256(tokens.admin)];
@@ -161,6 +220,7 @@ async function checkFrontend() {
   const requests = [];
   let response = { ok: true, json: async () => ({ status: 'success' }) };
   const client = vm.createContext({ userKey: tokens.editor, SCRIPT_URL: 'https://example.invalid/exec',
+    hasActiveSession: () => true, sessionGeneration: 0, activeRequests: new Set(), AbortController, setTimeout, clearTimeout,
     fetch: async (url, options) => { requests.push({ url, options }); return response; } });
   vm.runInContext(helper, client);
   await client.apiRequest('READ');
