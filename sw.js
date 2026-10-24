@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mybank-product-v3-auth';
+const CACHE_NAME = 'mybank-product-v4-safe-rendering';
 const ASSETS = [
   './',
   './index.html',

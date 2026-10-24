@@ -549,7 +549,7 @@
             if (stored) CATEGORY_CONFIG = JSON.parse(stored);
             const mainSelect = document.getElementById('inp-category');
             const currentVal = mainSelect.value;
-            mainSelect.innerHTML = '';
+            mainSelect.replaceChildren();
             Object.keys(CATEGORY_CONFIG).forEach(cat => {
                 const opt = document.createElement('option');
                 opt.value = cat;
@@ -563,7 +563,7 @@
         function updateSubCategories() {
             const mainCat = document.getElementById('inp-category').value;
             const subSelect = document.getElementById('inp-subcategory');
-            subSelect.innerHTML = '';
+            subSelect.replaceChildren();
             if (CATEGORY_CONFIG[mainCat]) {
                 CATEGORY_CONFIG[mainCat].subs.forEach(sub => {
                     const opt = document.createElement('option');
@@ -654,7 +654,7 @@
             }
             cachedTransactions = txs.slice();
             const listEl = document.getElementById('tx-list');
-            listEl.innerHTML = '';
+            listEl.replaceChildren();
 
             let totalLiquid = 0;
             let totalSavings = 0;
@@ -681,8 +681,6 @@
                     }
                 }
 
-                const li = document.createElement('li');
-                li.className = 'tx-item';
                 const isSynced = tx.synced === 1;
                 const icon = isSynced ? '✓' : '🕒';
                 let symbol = getCurrencySymbol(tx.currency);
@@ -699,18 +697,7 @@
                     userBadge = (tx.user_tag === currentUser) ? '👤 Me' : '👤 Ptr';
                 }
 
-                li.innerHTML = `
-                <div class="tx-left" onclick="openEditModal('${tx.uuid}')">
-                    <span class="tx-cat">${tx.category} ${userBadge ? `<span style="font-size:0.7rem; background:#e2e8f0; padding:2px 4px; border-radius:4px; margin-left:4px;">${userBadge}</span>` : ''}</span>
-                    <span class="tx-meta">${tx.sub_category} • ${symbol}${Math.abs(tx.amount).toLocaleString()}</span>
-                </div>
-                <div class="tx-right" onclick="openEditModal('${tx.uuid}')">
-                    <span class="tx-amount" style="color:${color}">
-                        ${symbol}${tx.amount.toLocaleString()}
-                    </span>
-                    <span class="tx-icon">${icon}</span>
-                </div>`;
-                listEl.appendChild(li);
+                listEl.appendChild(createTransactionItem(tx, userBadge, symbol, color, icon));
             });
 
             // DASHBOARD UPDATES
@@ -739,6 +726,41 @@
             renderBudgets(txs);
         }
 
+        function createTransactionItem(tx, userBadge, symbol, color, icon) {
+            const li = document.createElement('li');
+            li.className = 'tx-item';
+            li.addEventListener('click', () => openEditModal(tx.uuid));
+
+            const left = document.createElement('div');
+            left.className = 'tx-left';
+            const category = document.createElement('span');
+            category.className = 'tx-cat';
+            category.textContent = tx.category;
+            if (userBadge) {
+                const badge = document.createElement('span');
+                badge.style.cssText = 'font-size:0.7rem; background:#e2e8f0; padding:2px 4px; border-radius:4px; margin-left:4px;';
+                badge.textContent = userBadge;
+                category.appendChild(badge);
+            }
+            const meta = document.createElement('span');
+            meta.className = 'tx-meta';
+            meta.textContent = `${tx.sub_category} • ${symbol}${Math.abs(tx.amount).toLocaleString()}`;
+            left.append(category, meta);
+
+            const right = document.createElement('div');
+            right.className = 'tx-right';
+            const amount = document.createElement('span');
+            amount.className = 'tx-amount';
+            amount.style.color = color;
+            amount.textContent = `${symbol}${tx.amount.toLocaleString()}`;
+            const status = document.createElement('span');
+            status.className = 'tx-icon';
+            status.textContent = icon;
+            right.append(amount, status);
+            li.append(left, right);
+            return li;
+        }
+
         let chartInstance = null;
         let cashflowChartInstance = null;
         function getCategoryType(catName) {
@@ -764,12 +786,13 @@
                 monthsMap[key] = true;
             });
             const monthKeys = Object.keys(monthsMap).sort((a, b) => b.localeCompare(a));
-            monthFilterEl.innerHTML = '<option value="all">All</option>' + monthKeys.map(k => {
+            monthFilterEl.replaceChildren(new Option('All', 'all'));
+            monthKeys.forEach(k => {
                 const [y, m] = k.split('-');
                 const date = new Date(Number(y), Number(m) - 1, 1);
                 const label = date.toLocaleString(undefined, { month: 'short' }) + ' ' + y;
-                return `<option value="${k}">${label}</option>`;
-            }).join('');
+                monthFilterEl.add(new Option(label, k));
+            });
             if (prev && Array.from(monthFilterEl.options).some(o => o.value === prev)) monthFilterEl.value = prev;
             else monthFilterEl.value = 'all';
             return monthKeys;
@@ -952,7 +975,7 @@
             try { limits = getBudgetLimits(); if (!limits || Object.keys(limits).length === 0) throw new Error("No limits"); } catch (e) { limits = (typeof DEFAULT_LIMITS !== 'undefined') ? DEFAULT_LIMITS : {}; }
             const listEl = document.getElementById('budget-list');
             if (!listEl) return;
-            listEl.innerHTML = '';
+            listEl.replaceChildren();
             const now = new Date();
             const spending = {};
 
@@ -974,7 +997,23 @@
                 let color = 'fill-green';
                 if (spent > limitDisp) color = 'fill-red';
                 else if (spent > limitDisp * 0.8) color = 'fill-orange';
-                listEl.innerHTML += `<div class="budget-item"><div class="budget-header"><span>${cat}</span><span>${Math.round(spent).toLocaleString()} / ${Math.round(limitDisp).toLocaleString()}</span></div><div class="budget-track"><div class="budget-fill ${color}" style="width:${pct}%"></div></div></div>`;
+                const item = document.createElement('div');
+                item.className = 'budget-item';
+                const header = document.createElement('div');
+                header.className = 'budget-header';
+                const name = document.createElement('span');
+                name.textContent = cat;
+                const amounts = document.createElement('span');
+                amounts.textContent = `${Math.round(spent).toLocaleString()} / ${Math.round(limitDisp).toLocaleString()}`;
+                header.append(name, amounts);
+                const track = document.createElement('div');
+                track.className = 'budget-track';
+                const fill = document.createElement('div');
+                fill.className = `budget-fill ${color}`;
+                fill.style.width = `${pct}%`;
+                track.appendChild(fill);
+                item.append(header, track);
+                listEl.appendChild(item);
             });
         }
 
@@ -991,11 +1030,21 @@
             const limits = getBudgetLimits();
             const container = document.getElementById('budget-inputs');
             document.getElementById('budget-settings-title').innerText = `Budget Limits (${getCurrencySymbol(appSettings.displayCurrency)})`;
-            container.innerHTML = '';
+            container.replaceChildren();
             Object.keys(limits).forEach(cat => {
                 if (cat !== 'Salary' && cat !== 'Business Sales') {
                     const displayLimit = convertCurrency(limits[cat], 'THB', appSettings.displayCurrency);
-                    container.innerHTML += `<div style="margin-bottom:10px;"><label style="display:block; font-size:0.8rem; color:#6b7280;">${cat}</label><input type="number" id="limit-${cat}" value="${Math.round(displayLimit)}"></div>`;
+                    const row = document.createElement('div');
+                    row.style.marginBottom = '10px';
+                    const label = document.createElement('label');
+                    label.style.cssText = 'display:block; font-size:0.8rem; color:#6b7280;';
+                    label.textContent = cat;
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.id = `limit-${cat}`;
+                    input.value = Math.round(displayLimit);
+                    row.append(label, input);
+                    container.appendChild(row);
                 }
             });
             document.getElementById('budget-settings-modal').style.display = 'flex';
@@ -1095,7 +1144,7 @@
                 amtInput.placeholder = `Amount (${tx.currency})`;
                 document.getElementById('edit-note').value = tx.note || '';
                 const catSelect = document.getElementById('edit-category');
-                catSelect.innerHTML = '';
+                catSelect.replaceChildren();
                 Object.keys(CATEGORY_CONFIG).forEach(cat => {
                     const opt = document.createElement('option');
                     opt.value = cat; opt.innerText = cat;
@@ -1110,7 +1159,7 @@
         function updateEditSubCategories(preselect = null) {
             const mainCat = document.getElementById('edit-category').value;
             const subSelect = document.getElementById('edit-subcategory');
-            subSelect.innerHTML = '';
+            subSelect.replaceChildren();
             if (CATEGORY_CONFIG[mainCat]) {
                 CATEGORY_CONFIG[mainCat].subs.forEach(sub => {
                     const opt = document.createElement('option');
