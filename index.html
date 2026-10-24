@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#102923">
 
     <link rel="apple-touch-icon" href="./assets/icon-192.png">
     <link rel="icon" type="image/png" href="./assets/icon-192.png" />
@@ -180,15 +180,21 @@
         .privacy-icon { font-size: 1.2rem; cursor: pointer; opacity: 0.7; transition: opacity 0.2s; }
         .privacy-icon:hover { opacity: 1; }
     </style>
+    <link rel="stylesheet" href="./theme.css">
 </head>
 
 <body>
-    <div id="login-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#2563eb; z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white;">
-        <img src="./assets/icon-192.png" style="width:80px; margin-bottom:20px; border-radius:15px; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
-        <h2 style="margin:0 0 20px 0;">My Bank</h2>
-        <input type="password" id="login-pass" placeholder="Enter Private Access Key" autocomplete="off" style="padding:15px; border-radius:10px; border:none; width:80%; max-width:250px; text-align:center; font-size:1.2rem; color:#333;">
-        <button id="login-btn" onclick="attemptLogin()" style="margin-top:20px; padding:12px 30px; background:white; color:#2563eb; border:none; border-radius:30px; font-weight:bold; font-size:1rem; cursor:pointer;">Unlock</button>
-        <p id="login-msg" style="margin-top:20px; font-size:0.9rem; opacity:0.8;"></p>
+    <div id="login-overlay">
+        <div class="login-card">
+            <div class="login-emblem"><img src="./assets/icon-192.png" alt=""></div>
+            <p class="eyebrow">YOUR PRIVATE LEDGER</p>
+            <h1>My Bank</h1>
+            <p class="login-copy">A clearer view of everything you earn, spend, and grow.</p>
+            <label for="login-pass" class="field-label">Private access key</label>
+            <input type="password" id="login-pass" placeholder="Enter your access key" autocomplete="off" spellcheck="false">
+            <button id="login-btn" type="button" onclick="attemptLogin()">Unlock dashboard <span aria-hidden="true">↗</span></button>
+            <p id="login-msg" role="status" aria-live="polite"></p>
+        </div>
     </div>
 
     <div id="app">
@@ -225,40 +231,52 @@
             </div>
         </div>
 
-        <header>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <div style="font-weight:bold; color:#1e293b;">Dashboard</div>
-                <div style="display:flex; gap:15px; align-items:center;">
-                    <span class="privacy-icon" onclick="openProfileSettings()" title="Settings">⚙️</span>
-                    <span class="privacy-icon" onclick="togglePrivacy()" id="privacy-btn">👁️</span>
+        <header class="dashboard-hero">
+            <div class="topbar">
+                <div class="brand-lockup">
+                    <span class="brand-mark" aria-hidden="true">MB</span>
+                    <div><span class="brand-caption">PRIVATE FINANCE</span><strong>My Bank</strong></div>
+                </div>
+                <div class="topbar-controls">
+                    <button class="privacy-icon" type="button" onclick="openProfileSettings()" title="Profile settings" aria-label="Profile settings">⚙</button>
+                    <button class="privacy-icon" type="button" onclick="togglePrivacy()" id="privacy-btn" title="Hide balances" aria-label="Toggle balance privacy">👁️</button>
                 </div>
             </div>
 
-            <div class="view-toggle">
-                <div class="view-btn active" id="view-Mine" onclick="setViewMode('Mine')">My Data</div>
-                <div class="view-btn" id="view-Partner" onclick="setViewMode('Partner')">Partner</div>
-                <div class="view-btn" id="view-Combined" onclick="setViewMode('Combined')">Combined</div>
+            <div class="hero-intro">
+                <p class="eyebrow">YOUR OVERVIEW</p>
+                <h1>Every number, in perspective.</h1>
+                <p>Move with confidence. Your finances at a glance.</p>
+            </div>
+
+            <div class="view-toggle" aria-label="Account view">
+                <button type="button" class="view-btn active" id="view-Mine" aria-pressed="true" onclick="setViewMode('Mine')">My Data</button>
+                <button type="button" class="view-btn" id="view-Partner" aria-pressed="false" onclick="setViewMode('Partner')">Partner</button>
+                <button type="button" class="view-btn" id="view-Combined" aria-pressed="false" onclick="setViewMode('Combined')">Combined</button>
             </div>
 
             <div class="balance-grid">
-                <div class="balance-card">
+                <div class="balance-card balance-card-primary">
                     <div class="label">Available Balance</div>
                     <div class="amount" id="val-liquid">...</div>
+                    <span class="balance-caption">Your liquid position</span>
                 </div>
                 <div class="balance-card">
                     <div class="label">Total Savings</div>
                     <div class="amount" id="val-assets">...</div>
+                    <span class="balance-caption">Building for tomorrow</span>
                 </div>
-                <div class="balance-card" style="grid-column: span 2;">
+                <div class="balance-card">
                     <div class="label">Store Inventory Value</div>
-                    <div class="amount" id="val-stock" style="color:#3b82f6;">...</div>
+                    <div class="amount" id="val-stock">...</div>
+                    <span class="balance-caption">Working capital</span>
                 </div>
             </div>
         </header>
 
         <div class="actions">
-            <button class="btn btn-income" onclick="openForm('Income')">+ Income</button>
-            <button class="btn btn-expense" onclick="openForm('Expense')">- Expense</button>
+            <button class="btn btn-income" type="button" onclick="openForm('Income')"><span class="action-symbol" aria-hidden="true">＋</span><span><strong>Add income</strong><small>Money coming in</small></span><span class="action-arrow" aria-hidden="true">↗</span></button>
+            <button class="btn btn-expense" type="button" onclick="openForm('Expense')"><span class="action-symbol" aria-hidden="true">−</span><span><strong>Add expense</strong><small>Money going out</small></span><span class="action-arrow" aria-hidden="true">↗</span></button>
         </div>
 
         <div id="input-panel">
@@ -284,17 +302,18 @@
             </div>
         </div>
         
-        <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
-            <h3 style="margin:0 0 10px 0; font-size:1rem;">Cashflow</h3>
-            <div style="position:relative; min-height: 200px;">
+        <div class="insights-grid">
+        <section class="panel panel-cashflow">
+            <div class="panel-heading"><div><span class="eyebrow">THE FLOW</span><h3>Cashflow</h3></div></div>
+            <div class="chart-frame chart-frame-cashflow">
                 <canvas id="cashflowChart"></canvas>
             </div>
-        </div>
+        </section>
         
-        <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <h3 style="margin:0; font-size:1rem;">Spending Analysis</h3>
-                <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem;">
+        <section class="panel panel-spending">
+            <div class="panel-heading">
+                <div><span class="eyebrow">YOUR PATTERNS</span><h3>Spending analysis</h3></div>
+                <div class="chart-mode-control">
                     <span>Daily</span>
                     <label class="switch">
                         <input type="checkbox" id="chart-toggle" onchange="toggleChartMode()">
@@ -303,18 +322,19 @@
                     <span>All</span>
                 </div>
             </div>
-            <div style="position:relative; min-height: 250px;">
-                <button id="chart-back-btn" onclick="resetChartLevel()" style="display:none; position:absolute; top:0; left:0; z-index:10; background:#f1f5f9; border:none; padding:5px 10px; border-radius:15px; font-size:0.8rem; cursor:pointer; color:#64748b; font-weight:600;">⬅ Back to Categories</button>
+            <div class="chart-frame chart-frame-spending">
+                <button id="chart-back-btn" type="button" onclick="resetChartLevel()" style="display:none;">← Back to categories</button>
                 <canvas id="expenseChart"></canvas>
             </div>
-        </div>
+        </section>
 
-        <div style="padding: 0 20px 20px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <h3 style="margin:0; font-size:1rem; color:#6b7280; text-transform:uppercase;">Monthly Budgets</h3>
-                <button onclick="openBudgetSettings()" style="background:none; border:none; font-size:1.2rem; cursor:pointer;">⚙️</button>
+        <section class="panel panel-budgets">
+            <div class="panel-heading">
+                <div><span class="eyebrow">STAY ON COURSE</span><h3>Monthly budgets</h3></div>
+                <button class="panel-icon-button" type="button" onclick="openBudgetSettings()" title="Edit budget limits" aria-label="Edit budget limits">⚙</button>
             </div>
             <div id="budget-list"></div>
+        </section>
         </div>
 
         <div id="budget-settings-modal">
@@ -347,18 +367,20 @@
             </div>
         </div>
 
-        <div class="list-header" style="align-items:center;">
-            <span>Recent Transactions</span>
-            <div style="display:flex; align-items:center; gap:8px;">
-                <button id="month-prev" onclick="prevMonth()" title="Previous month" style="background:white; border:1px solid #e5e7eb; padding:6px 8px; border-radius:8px; cursor:pointer;">◀</button>
-                <select id="month-filter" onchange="onMonthChange()" style="padding:6px 8px; border-radius:8px; border:1px solid #e5e7eb; background:white; font-size:0.9rem;">
+        <section class="activity-section">
+        <div class="list-header">
+            <div><span class="eyebrow">THE DETAILS</span><h3>Recent transactions</h3></div>
+            <div class="activity-controls">
+                <button id="month-prev" class="month-nav" type="button" onclick="prevMonth()" title="Previous month" aria-label="Previous month">←</button>
+                <select id="month-filter" onchange="onMonthChange()" aria-label="Transaction month">
                     <option value="all">All</option>
                 </select>
-                <button id="month-next" onclick="nextMonth()" title="Next month" style="background:white; border:1px solid #e5e7eb; padding:6px 8px; border-radius:8px; cursor:pointer;">▶</button>
-                <span id="sync-status" class="status-indicator">● Connecting...</span>
+                <button id="month-next" class="month-nav" type="button" onclick="nextMonth()" title="Next month" aria-label="Next month">→</button>
             </div>
         </div>
+        <span id="sync-status" class="status-indicator" role="status" aria-live="polite">● Connecting...</span>
         <ul id="tx-list"></ul>
+        </section>
     </div>
 
     <script>
@@ -463,8 +485,10 @@
         async function attemptLogin() {
             const input = document.getElementById('login-pass').value.trim();
             const msg = document.getElementById('login-msg');
+            const button = document.getElementById('login-btn');
 
-            if (!input) return;
+            if (!input) { msg.innerText = 'Enter your private access key.'; return; }
+            if (button.disabled) return;
             msg.innerText = "Verifying...";
 
             if (!navigator.onLine) {
@@ -472,6 +496,7 @@
                 return;
             }
 
+            button.disabled = true;
             try {
                 await apiRequest('READ', undefined, input);
                 unlockApp(input);
@@ -489,8 +514,14 @@
                 } else {
                     msg.innerText = 'Could not reach the backend. Check your connection and Web App URL.';
                 }
+            } finally {
+                button.disabled = false;
             }
         }
+
+        document.getElementById('login-pass').addEventListener('keydown', event => {
+            if (event.key === 'Enter') attemptLogin();
+        });
 
         function unlockApp(key) {
             userKey = key;
@@ -523,6 +554,7 @@
                 const btn = document.getElementById(`view-${m}`);
                 if (m === mode) btn.classList.add('active');
                 else btn.classList.remove('active');
+                btn.setAttribute('aria-pressed', String(m === mode));
             });
             renderList();
         }
@@ -623,9 +655,11 @@
             currentType = type;
             populateCategoryUI(true);
             document.getElementById('form-title').innerText = `Add ${type}`;
-            document.getElementById('input-panel').classList.add('active');
+            const panel = document.getElementById('input-panel');
+            panel.classList.add('active');
             document.getElementById('inp-amount').focus();
             setCurrency(appSettings.displayCurrency || 'THB');
+            panel.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
 
             // Show warning if adding while looking at Partner's dashboard
             const warningEl = document.getElementById('form-warning');
@@ -732,10 +766,10 @@
                 const icon = isSynced ? '✓' : '🕒';
                 let symbol = getCurrencySymbol(tx.currency);
 
-                let color = tx.amount > 0 ? 'green' : 'red';
+                let color = tx.amount > 0 ? '#24715e' : '#b6584e';
                 if (tx.category === 'Loans') {
-                    if (tx.sub_category === 'Loan Received') color = '#16a34a';
-                    if (tx.sub_category === 'Loan Repayment') color = '#dc2626';
+                    if (tx.sub_category === 'Loan Received') color = '#24715e';
+                    if (tx.sub_category === 'Loan Repayment') color = '#b6584e';
                 }
                 
                 // Show a tiny icon if in Combined view so you know who spent what
@@ -746,6 +780,16 @@
 
                 listEl.appendChild(createTransactionItem(tx, userBadge, symbol, color, icon));
             });
+            if (txs.length === 0) {
+                const empty = document.createElement('li');
+                empty.className = 'empty-state';
+                const heading = document.createElement('strong');
+                heading.textContent = 'Nothing here yet';
+                const detail = document.createElement('span');
+                detail.textContent = 'Your transactions will appear here as you add them.';
+                empty.append(heading, detail);
+                listEl.appendChild(empty);
+            }
 
             // DASHBOARD UPDATES
             const liquidEl = document.getElementById('val-liquid');
@@ -753,19 +797,23 @@
             const stockEl = document.getElementById('val-stock');
             const privacyBtn = document.getElementById('privacy-btn');
 
-            if (privacyBtn) privacyBtn.innerText = isPrivacyHidden ? '🙈' : '👁️';
+            if (privacyBtn) {
+                privacyBtn.innerText = isPrivacyHidden ? '🙈' : '👁️';
+                privacyBtn.setAttribute('aria-pressed', String(isPrivacyHidden));
+                privacyBtn.title = isPrivacyHidden ? 'Show balances' : 'Hide balances';
+            }
             const displaySym = getCurrencySymbol(appSettings.displayCurrency);
 
             if (isPrivacyHidden) {
                 liquidEl.innerText = '****';
                 assetEl.innerText = '****';
                 stockEl.innerText = '****';
-                liquidEl.style.color = '#0f172a';
+                liquidEl.style.color = '#f8f3e6';
             } else {
                 liquidEl.innerText = `${displaySym}${totalLiquid.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
                 assetEl.innerText = `${displaySym}${totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
                 stockEl.innerText = `${displaySym}${totalStock.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-                liquidEl.style.color = totalLiquid >= 0 ? '#16a34a' : '#dc2626';
+                liquidEl.style.color = totalLiquid >= 0 ? '#d7ead8' : '#ffbaa9';
             }
 
             renderChart(txs);
@@ -776,7 +824,16 @@
         function createTransactionItem(tx, userBadge, symbol, color, icon) {
             const li = document.createElement('li');
             li.className = 'tx-item';
+            li.tabIndex = 0;
+            li.setAttribute('role', 'button');
+            li.setAttribute('aria-label', `Edit ${tx.category} transaction`);
             li.addEventListener('click', () => openEditModal(tx.uuid));
+            li.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openEditModal(tx.uuid);
+                }
+            });
 
             const left = document.createElement('div');
             left.className = 'tx-left';
@@ -785,7 +842,7 @@
             category.textContent = tx.category;
             if (userBadge) {
                 const badge = document.createElement('span');
-                badge.style.cssText = 'font-size:0.7rem; background:#e2e8f0; padding:2px 4px; border-radius:4px; margin-left:4px;';
+                badge.style.cssText = 'font-size:0.7rem; background:#edf2eb; padding:2px 6px; border-radius:5px; margin-left:5px;';
                 badge.textContent = userBadge;
                 category.appendChild(badge);
             }
@@ -946,8 +1003,8 @@
                     datasets: [{
                         label: `Total (${appSettings.displayCurrency})`,
                         data: [totalIncome, totalExpense],
-                        backgroundColor: ['#16a34a', '#dc2626'],
-                        borderRadius: 6
+                        backgroundColor: ['#397d66', '#c58b71'],
+                        borderRadius: 10
                     }]
                 },
                 options: {
@@ -956,7 +1013,7 @@
                         legend: { display: false },
                         tooltip: { callbacks: { label: function (context) { return ` ${displaySym}${context.raw.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`; } } }
                     },
-                    scales: { y: { beginAtZero: true, ticks: { callback: function (value) { if (value >= 1000) return displaySym + (value / 1000) + 'k'; return displaySym + value; } } } }
+                    scales: { y: { beginAtZero: true, border: { display: false }, grid: { color: '#edf0e9' }, ticks: { color: '#718278', callback: function (value) { if (value >= 1000) return displaySym + (value / 1000) + 'k'; return displaySym + value; } } }, x: { border: { display: false }, grid: { display: false }, ticks: { color: '#52695c', font: { weight: 'bold' } } } }
                 }
             });
         }
@@ -985,7 +1042,7 @@
                 }
             }
             if (chartInstance) chartInstance.destroy();
-            const colors = ['#ef4444', '#f97316', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#84cc16', '#14b8a6', '#6366f1', '#a855f7', '#d946ef', '#fb923c'];
+            const colors = ['#397d66', '#b98d4c', '#c58b71', '#5a8b89', '#8d9972', '#806f91', '#d1ad6b', '#a66862', '#4c796d', '#bd9f7e', '#7d9e94', '#aa7560', '#596f62', '#c0a877', '#6c9283'];
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: { labels: labels, datasets: [{ data: dataValues, backgroundColor: colors, borderWidth: 0, hoverOffset: 10 }] },
@@ -999,7 +1056,7 @@
                         }
                     },
                     plugins: {
-                        legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } },
+                         legend: { position: window.innerWidth < 600 ? 'bottom' : 'right', labels: { boxWidth: 10, color: '#52695c', font: { size: 11 } } },
                         tooltip: {
                             callbacks: {
                                 label: function (context) { return `${context.label}: ${displaySym}${context.raw.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`; },

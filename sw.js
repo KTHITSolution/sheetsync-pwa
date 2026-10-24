@@ -1,7 +1,8 @@
-const CACHE_NAME = 'mybank-product-v5-required-categories';
+const CACHE_NAME = 'mybank-product-v6-luxe';
 const ASSETS = [
   './',
   './index.html',
+  './theme.css',
   './config.js',
   './manifest.json',
   './assets/icon-192.png',

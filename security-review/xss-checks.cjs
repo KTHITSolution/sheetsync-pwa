@@ -14,6 +14,7 @@ class Element {
     this.children = [];
     this.style = {};
     this.listeners = {};
+    this.attributes = {};
     this._text = '';
   }
   set textContent(value) { this._text = String(value); }
@@ -23,6 +24,7 @@ class Element {
   appendChild(child) { this.append(child); return child; }
   replaceChildren(...children) { this.children = children; this._text = ''; }
   addEventListener(name, handler) { this.listeners[name] = handler; }
+  setAttribute(name, value) { this.attributes[name] = value; }
 }
 
 const nodes = new Map();
@@ -60,8 +62,10 @@ assert.match(row.textContent, /<img src=x onerror=/);
 assert.match(row.textContent, /<svg onload=/);
 assert.deepEqual(row.children.map(child => child.tag), ['div', 'div']);
 assert.equal(typeof row.listeners.click, 'function');
+assert.equal(row.attributes.role, 'button');
 row.listeners.click();
-assert.deepEqual(edits, [maliciousId]);
+row.listeners.keydown({ key: 'Enter', preventDefault() {} });
+assert.deepEqual(edits, [maliciousId, maliciousId]);
 assert.equal(context.window?.stolen, undefined);
 console.log('PASS: hostile transaction fields remain text and edit click uses the exact ID');
 
