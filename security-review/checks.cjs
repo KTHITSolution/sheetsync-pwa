@@ -39,9 +39,10 @@ const keyDirectory = {
 let configured = JSON.stringify(keyDirectory);
 let spreadsheetOpens = 0;
 let lockAttempts = 0;
+let sheetAccessFails = false;
 const context = vm.createContext({
   console: { log() {}, error() {} },
-  SpreadsheetApp: { openById: () => { spreadsheetOpens++; return { getSheetByName: name => name === 'Transactions' ? transactions : audit }; }, flush() {} },
+  SpreadsheetApp: { openById: () => { spreadsheetOpens++; if (sheetAccessFails) throw new Error('Google authorization required'); return { getSheetByName: name => name === 'Transactions' ? transactions : audit }; }, flush() {} },
   PropertiesService: { getScriptProperties: () => ({ getProperty: () => configured }) },
   Utilities: { DigestAlgorithm: { SHA_256: 'sha256' }, Charset: { UTF_8: 'utf8' },
     computeDigest: (_, key) => [...crypto.createHash('sha256').update(key).digest()].map(byte => byte > 127 ? byte - 256 : byte) },
@@ -68,8 +69,24 @@ run('missing or malformed server configuration fails closed', () => {
     configured = config;
     assert.equal(post({ action: 'READ', key: tokens.admin }).status, 'error');
   }
+  configured = 'invalid JSON';
+  assert.equal(post({ action: 'READ', key: tokens.admin }).message, 'Backend configuration error');
   configured = JSON.stringify(keyDirectory);
   assert.equal(spreadsheetOpens, 0);
+});
+run('setup check validates settings and spreadsheet access without printing secrets', () => {
+  const validDirectory = { ...keyDirectory };
+  delete validDirectory[sha256(tokens.unknown)];
+  configured = JSON.stringify(validDirectory);
+  context.verifyBackendSetup();
+  configured = 'invalid JSON';
+  assert.throws(() => context.verifyBackendSetup(), /not valid JSON/);
+  configured = JSON.stringify(validDirectory);
+  sheetAccessFails = true;
+  assert.throws(() => context.verifyBackendSetup(), /Google authorization required/);
+  assert.equal(post({ action: 'READ', key: tokens.admin }).message, 'Unable to read transactions');
+  sheetAccessFails = false;
+  configured = JSON.stringify(keyDirectory);
 });
 run('every configured role can read', () => {
   for (const role of ['admin', 'editor', 'viewer']) {

@@ -35,6 +35,8 @@ All data reads now use authenticated POST requests; opening the endpoint URL in 
 
 If login says **Key not recognized**, check these exact details without sharing the private key: the Script Property name is `MYBANK_ACCESS_KEYS`; its value is one JSON object like `{"64-character-hex-sha256-hash":"listed@example.com"}`; the value is the **hash printed by the generator**, while the app login receives the **private access key** printed separately. The email must exactly match an entry in `USER_DIRECTORY` in the deployed script. Also confirm that the app's `SCRIPT_URL` points to the deployment you updated. A fresh key has 43 characters. A backend error can indicate malformed JSON or missing server settings; inspect **Apps Script > Executions**. A connection error points to network, URL, deployment access, or browser access issues.
 
+If login reports a backend or sheet error, open the Apps Script editor as the deployment owner. Select `verifyBackendSetup` in the function menu and click **Run**. Complete any Google authorization prompt. A successful run logs only the number of configured keys and that the Transactions sheet is accessible; failures name the setting or sheet problem without printing secrets or records. Confirm **Execute as: Me** in the web app deployment, then use **Manage deployments > Edit > New version > Deploy** to publish the updated backend. Google explains that adding a service may require the owner to [authorize new scopes](https://developers.google.com/apps-script/guides/services/authorization).
+
 ## 4. Verify and revoke old access
 
 - Open the deployed endpoint directly: it must say `Use authenticated POST` and expose no records.

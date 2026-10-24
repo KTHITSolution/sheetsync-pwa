@@ -35,7 +35,15 @@ class AuthService {
     }
     const configured = PropertiesService.getScriptProperties().getProperty('MYBANK_ACCESS_KEYS');
     if (!configured) throw new Error('Unauthorized');
-    const keys = JSON.parse(configured);
+    let keys;
+    try {
+      keys = JSON.parse(configured);
+    } catch (err) {
+      throw new Error('Backend configuration error');
+    }
+    if (!keys || typeof keys !== 'object' || Array.isArray(keys)) {
+      throw new Error('Backend configuration error');
+    }
     const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, key, Utilities.Charset.UTF_8)
       .map(byte => ('0' + (byte & 255).toString(16)).slice(-2)).join('');
     if (!keys || Array.isArray(keys) || !Object.prototype.hasOwnProperty.call(keys, digest)) {
@@ -219,9 +227,11 @@ class AuditService {
 function doPost(e) {
   let lock;
   let locked = false;
+  let stage = 'request parsing';
 
   try {
     const payload = JSON.parse(e.postData.contents);
+    stage = 'authentication';
     const auth = new AuthService(payload.key);
     const action = payload.action;
     const requiredRoles = {
@@ -236,6 +246,7 @@ function doPost(e) {
     auth.enforceRole(requiredRoles[action], action);
     if (action === 'READ') return readData();
 
+    stage = 'write operation';
     lock = LockService.getScriptLock();
     locked = lock.tryLock(30000);
     if (!locked) return createJSONOutput({ status: 'error', message: 'Busy' });
@@ -263,7 +274,9 @@ function doPost(e) {
     }
 
   } catch (err) {
-    const message = err.message === 'Unauthorized' || err.message === 'Forbidden'
+    // Do not log payloads or exception text from parsing; they can contain keys.
+    console.error('[My Bank] POST failed during ' + stage + ': ' + (err.name || 'Error'));
+    const message = ['Unauthorized', 'Forbidden', 'Backend configuration error'].includes(err.message)
       ? err.message : 'Request failed';
     return createJSONOutput({ status: 'error', message: message });
   } finally {
@@ -274,6 +287,31 @@ function doPost(e) {
 function doGet(e) {
   // Credentials and financial data must not travel in URLs.
   return createJSONOutput({ status: 'error', message: 'Use authenticated POST' });
+}
+
+// Run manually in the Apps Script editor as the deployment owner. This checks
+// server setup and triggers any newly required Google authorization prompts.
+// It never prints keys, hashes, emails, or transaction contents.
+function verifyBackendSetup() {
+  const configured = PropertiesService.getScriptProperties().getProperty('MYBANK_ACCESS_KEYS');
+  if (!configured) throw new Error('MYBANK_ACCESS_KEYS is missing');
+  let keys;
+  try {
+    keys = JSON.parse(configured);
+  } catch (err) {
+    throw new Error('MYBANK_ACCESS_KEYS is not valid JSON');
+  }
+  if (!keys || typeof keys !== 'object' || Array.isArray(keys)) {
+    throw new Error('MYBANK_ACCESS_KEYS must be a JSON object');
+  }
+  const digests = Object.keys(keys);
+  if (digests.length === 0 || digests.some(digest => !/^[0-9a-f]{64}$/.test(digest) ||
+      typeof keys[digest] !== 'string' || !Object.prototype.hasOwnProperty.call(USER_DIRECTORY, keys[digest]))) {
+    throw new Error('Access-key hash or user directory entry is invalid');
+  }
+  const sheet = getSpreadsheet().getSheetByName('Transactions');
+  if (!sheet) throw new Error('Transactions sheet was not found');
+  console.log('[My Bank] Backend setup OK: ' + digests.length + ' configured key(s), Transactions sheet accessible.');
 }
 
 // Internal helper: Apps Script routes HTTP only through doGet/doPost.
@@ -324,6 +362,7 @@ function readData() {
       }
     });
   } catch (err) {
-    return createJSONOutput({ status: 'error', message: 'Request failed' });
+    console.error('[My Bank] READ failed: ' + (err.stack || err));
+    return createJSONOutput({ status: 'error', message: 'Unable to read transactions' });
   }
 }

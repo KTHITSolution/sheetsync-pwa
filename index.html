@@ -482,6 +482,10 @@
                     msg.innerText = 'This key does not have read access.';
                 } else if (e.message === 'Request failed') {
                     msg.innerText = 'Backend error. Check Apps Script settings and Executions.';
+                } else if (e.message === 'Backend configuration error') {
+                    msg.innerText = 'Invalid MYBANK_ACCESS_KEYS setting in Apps Script.';
+                } else if (e.message === 'Unable to read transactions') {
+                    msg.innerText = 'Cannot read Transactions sheet. Check SHEET_ID and Apps Script permissions.';
                 } else {
                     msg.innerText = 'Could not reach the backend. Check your connection and Web App URL.';
                 }
